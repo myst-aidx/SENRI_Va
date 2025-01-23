@@ -1,0 +1,137 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.example.env
+
+# Test files
+test_screenshots/
+/coverage
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+mochawesome-report/
+
+# Security
+*.pem
+*.key
+*.cert
+*.crt
+
+# Build
+/build
+/dist
+/out
+
+# Cache
+.cache/
+.temp/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# API keys and secrets
+.env
+.env.*
+!.env.example
+config.js
+config.ts
+secrets.json
+
+# Build files
+/dist
+/build
+/.next
+/out
+
+# Cache
+.npm/
+.eslintcache
+.stylelintcache
+
+# Temporary files
+*.log
+*.tmp
+*~
+
+# Testing
+coverage
+
+# Production
+build
+dist
+
+# Misc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Windows specific
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build
+/dist
+/build
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
