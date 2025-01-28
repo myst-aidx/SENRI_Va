@@ -3,22 +3,22 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { connectDB, testConnection } from './db';
-import authRoutes from './routes/authRoutes';
+const { connectDB, testDatabaseConnection } = require('./db');
+const authRoutes = require('./routes/authRoutes');
 import subscriptionRoutes from './routes/subscriptionRoutes';
 import fortuneRoutes from './routes/fortuneRoutes';
 import userRoutes from './routes/userRoutes';
 import chatRoutes from './routes/chatRoutes';
 import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import fortuneHistoryRoutes from './routes/fortuneHistoryRoutes';
-import { createLogger } from './utils/logger';
+const { createLogger } = require('./utils/logger');
 
 dotenv.config();
 
 export const app = express();
 
 const logger = createLogger('Server');
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 
 // CORS設定
 app.use(cors({

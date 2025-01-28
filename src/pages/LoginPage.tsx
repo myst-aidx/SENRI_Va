@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../auth/AuthContext';
 import { loginRequest } from '../auth/AuthService';
+
+interface LocationState {
+  redirectTo?: string;
+  selectedPlan?: 'premium' | 'basic' | 'test';
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,21 +15,23 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
-  const prevAuthRef = useRef(isAuthenticated);
+  const locationState = location.state as LocationState;
 
-  // 認証状態の監視と自動リダイレクト
   useEffect(() => {
-    // 認証状態が false から true に変更された場合のみリダイレクト
-    if (!prevAuthRef.current && isAuthenticated) {
-      console.log('Auth state changed from false to true, redirecting to /fortune');
-      navigate('/fortune', { replace: true });
+    if (isAuthenticated) {
+      const redirectTo = locationState?.redirectTo || '/fortune';
+      const selectedPlan = locationState?.selectedPlan;
+      
+      if (redirectTo === '/subscription' && selectedPlan) {
+        navigate('/subscription', { 
+          state: { selectedPlan }
+        });
+      } else {
+        navigate(redirectTo);
+      }
     }
-    
-    // 現在の認証状態を保存
-    prevAuthRef.current = isAuthenticated;
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, locationState]);
 
-  // 通常のログイン処理
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -33,33 +40,14 @@ export default function LoginPage() {
       const response = await loginRequest(email, password);
       await login(response.token);
     } catch (err) {
-      setError('ログインに失敗しました。メールアドレスとパスワードを確認してください。');
       console.error('Login error:', err);
+      setError('ログインに失敗しました。メールアドレスとパスワードを確認してください。');
     }
   };
 
-  // 強制ログイン処理（デバッグログ追加）
   const handleForceLogin = async () => {
-    console.log('Force Login - Start');
     try {
-      // デバッグユーザー情報を設定
-      const debugUser = {
-        id: 'debug_user',
-        email: 'debug@example.com',
-        role: 'USER',
-        isSubscribed: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      console.log('Force Login - Setting debug user:', debugUser);
-
-      // AuthContextのlogin関数を使用
       await login('debug_mode_token');
-      console.log('Force Login - Login successful');
-      
-      // エラーをクリア
-      setError('');
     } catch (err) {
       console.error('Force Login - Error:', err);
       setError('強制ログインに失敗しました。');
@@ -102,7 +90,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* 強制ログインボタン */}
         <button
           onClick={handleForceLogin}
           className="mt-4 w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"

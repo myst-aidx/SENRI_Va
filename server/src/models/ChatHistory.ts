@@ -1,54 +1,68 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { Message, MessageRole } from '../types/chat';
+import mongoose, { Schema, Document } from 'mongoose';
+import { MessageRole } from '../types/chat';
 
-interface ChatHistoryDocument extends Document {
-  userId: string;
-  messages: Message[];
-  metadata: {
-    startTime?: Date;
-    endTime?: Date;
-    userFeedback?: string;
-  };
-  createdAt: Date;
-  updatedAt: Date;
+interface IMessage {
+    role: MessageRole;
+    content: string;
+    timestamp: Date;
+    context?: {
+        fortuneType?: string;
+        fortuneId?: string;
+        mood?: string;
+        intent?: string;
+    };
 }
 
-const messageSchema = new Schema({
-  role: {
-    type: String,
-    enum: ['system', 'user', 'assistant'] as MessageRole[],
-    required: true
-  },
-  content: {
-    type: String,
-    required: true
-  },
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-  context: {
-    fortuneType: String,
-    fortuneId: String,
-    mood: String,
-    intent: String
-  }
+interface IMetadata {
+    startTime: Date;
+    endTime?: Date;
+    userFeedback?: string;
+}
+
+export interface IChatHistory extends Document {
+    userId: string;
+    messages: IMessage[];
+    metadata: IMetadata;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const messageSchema = new Schema<IMessage>({
+    role: {
+        type: String,
+        enum: Object.values(MessageRole),
+        required: true
+    },
+    content: {
+        type: String,
+        required: true
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    context: {
+        fortuneType: String,
+        fortuneId: String,
+        mood: String,
+        intent: String
+    }
 });
 
-const chatHistorySchema = new Schema({
-  userId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  messages: [messageSchema],
-  metadata: {
-    startTime: Date,
-    endTime: Date,
-    userFeedback: String
-  }
+const chatHistorySchema = new Schema<IChatHistory>({
+    userId: {
+        type: String,
+        required: true,
+        index: true
+    },
+    messages: [messageSchema],
+    metadata: {
+        startTime: Date,
+        endTime: Date,
+        userFeedback: String
+    }
 }, {
-  timestamps: true
+    timestamps: true
 });
 
-export const ChatHistory = mongoose.model<ChatHistoryDocument>('ChatHistory', chatHistorySchema); 
+export const ChatHistory = mongoose.model<IChatHistory>('ChatHistory', chatHistorySchema); 

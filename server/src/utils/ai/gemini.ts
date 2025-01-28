@@ -1,86 +1,74 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Message, MessageRole } from '../../types/chat';
 import { createLogger } from '../logger';
 
-const logger = createLogger('Gemini');
+const logger = createLogger('GeminiAPI');
 
-// 環境変数からAPIキーを取得
-const GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY;
+// Gemini APIの設定
+const API_KEY = process.env.GEMINI_API_KEY || 'your_gemini_api_key';
 
-// Geminiモデルの設定
-const MODEL_NAME = 'gemini-pro';
-const TEMPERATURE = 0.7;
-const TOP_P = 0.8;
-const TOP_K = 40;
+const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({ 
+    model: 'gemini-pro',
+    safetySettings: [
+        {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+    ],
+});
 
-// エラー型の定義
-class GeminiError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GeminiError';
-  }
-}
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-/**
- * Gemini APIを使用してレスポンスを生成する
- * @param systemPrompt システムプロンプト
- * @param messages 会話履歴
- * @returns 生成されたレスポンス
- */
-export async function generateGeminiResponse(
-  systemPrompt: string,
-  messages: Message[]
-): Promise<string> {
-  try {
-    if (!GEMINI_API_KEY) {
-      throw new GeminiError('Gemini APIキーが設定されていません');
-    }
-
-    // Gemini APIクライアントの初期化
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      generationConfig: {
-        temperature: TEMPERATURE,
-        topP: TOP_P,
-        topK: TOP_K,
-      },
-    });
-
-    // 会話履歴の構築
-    const history = messages.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.content }],
+// チャット履歴をGemini APIの形式に変換
+const convertMessagesToGeminiFormat = (messages: Message[]) => {
+    return messages.map(message => ({
+        role: message.role === MessageRole.USER ? 'user' : 'model',
+        parts: [{ text: message.content }]
     }));
+};
 
-    // チャットの開始
-    const chat = model.startChat({
-      history,
-      generationConfig: {
-        temperature: TEMPERATURE,
-        topP: TOP_P,
-        topK: TOP_K,
-      },
-    });
+// Gemini APIを使用して応答を生成
+export const generateGeminiResponse = async (
+    message: string,
+    chatHistory: Message[]
+): Promise<string> => {
+    try {
+        const chat = model.startChat({
+            history: convertMessagesToGeminiFormat(chatHistory),
+            generationConfig: {
+                maxOutputTokens: 1000,
+                temperature: 0.7,
+                topP: 0.8,
+                topK: 40
+            }
+        });
 
-    // レスポンスの生成
-    const result = await chat.sendMessage(systemPrompt);
-    const response = result.response;
-    
-    if (!response.text()) {
-      throw new GeminiError('空のレスポンスが返されました');
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        const text = response.text();
+
+        logger.info('Generated response from Gemini API', {
+            input: message,
+            output: text
+        });
+
+        return text;
+    } catch (error) {
+        logger.error('Error generating response from Gemini API', { error });
+        throw error;
     }
-
-    return response.text();
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    if (error instanceof GeminiError) {
-      throw error;
-    }
-    throw new GeminiError('Gemini APIでエラーが発生しました');
-  }
-}
+};
 
 /**
  * 画像付きのプロンプトに対してレスポンスを生成する
@@ -93,8 +81,8 @@ export async function generateGeminiVisionResponse(
   imageUrl: string
 ): Promise<string> {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new GeminiError('Gemini APIキーが設定されていません');
+    if (!API_KEY) {
+      throw new Error('Gemini APIキーが設定されていません');
     }
 
     // Gemini APIクライアントの初期化
@@ -121,16 +109,13 @@ export async function generateGeminiVisionResponse(
     const response = result.response;
     
     if (!response.text()) {
-      throw new GeminiError('空のレスポンスが返されました');
+      throw new Error('空のレスポンスが返されました');
     }
 
     return response.text();
   } catch (error) {
     console.error('Gemini Vision API error:', error);
-    if (error instanceof GeminiError) {
-      throw error;
-    }
-    throw new GeminiError('Gemini Vision APIでエラーが発生しました');
+    throw error;
   }
 }
 

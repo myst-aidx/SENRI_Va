@@ -13,8 +13,12 @@ export interface ReadingPreference {
 }
 
 export interface User {
-  id: string;
-  email: string;
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isPro: boolean;  // プレミアムプラン加入状態
+  proExpiresAt?: Date;  // プレミアムプランの有効期限
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +30,6 @@ export interface User {
     gender?: string;
   };
   name?: string;
-  displayName?: string;
   subscriptionPlan?: 'basic' | 'premium' | 'test';
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
@@ -83,4 +86,14 @@ export interface AuthState {
   loading: boolean;
   error: string | null;
   sessionWarning: boolean;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  planId: string;
+  status: 'active' | 'canceled' | 'expired';
+  startDate: Date;
+  endDate: Date;
+  autoRenew: boolean;
 } 

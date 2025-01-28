@@ -6,7 +6,6 @@ import { generateGeminiResponse } from '../utils/ai/gemini';
 import { ErrorType, AppError, ValidationError } from '../types/errors';
 import { ErrorMessages } from '../constants/errorMessages';
 import { Message, MessageRole } from '../types/chat';
-import { generateResponse } from '../utils/ai/gemini';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('ChatController');
@@ -20,7 +19,7 @@ export class ChatController {
       const session = new ChatHistory({
         userId,
         messages: [{
-          role: 'system',
+          role: MessageRole.SYSTEM,
           content: '占い師AIアシスタントとして、ユーザーの相談に乗り、的確なアドバイスを提供します。',
           timestamp: new Date()
         }],
@@ -64,8 +63,8 @@ export class ChatController {
       logger.error('チャット履歴の取得に失敗しました', { error });
       throw new AppError({
         statusCode: 500,
-        message: ErrorMessages.SERVER_ERROR,
-        type: ErrorType.SERVER_ERROR
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -73,14 +72,14 @@ export class ChatController {
   // メッセージの送信
   async sendMessage(req: Request, res: Response) {
     try {
-      const userId = req.user.id;
       const { message } = req.body;
+      const userId = req.user.id;
 
-      if (!message || typeof message !== 'string') {
-        throw new ValidationError({
-          message: ErrorMessages.INVALID_MESSAGE_FORMAT,
-          type: ErrorType.VALIDATION_ERROR
-        });
+      if (!message) {
+        throw new ValidationError(
+          ErrorMessages[ErrorType.VALIDATION].ja,
+          ['メッセージが入力されていません']
+        );
       }
 
       let chatHistory = await ChatHistory.findOne({ userId });
@@ -88,52 +87,46 @@ export class ChatController {
       if (!chatHistory) {
         chatHistory = new ChatHistory({
           userId,
-          messages: []
+          messages: [{
+            role: MessageRole.SYSTEM,
+            content: '占い師AIアシスタントとして、ユーザーの相談に乗り、的確なアドバイスを提供します。',
+            timestamp: new Date()
+          }]
         });
       }
 
       // ユーザーメッセージを追加
-      const userMessage: Message = {
+      chatHistory.messages.push({
         role: MessageRole.USER,
         content: message,
         timestamp: new Date()
-      };
-      chatHistory.messages.push(userMessage);
+      });
+
+      // AIの応答を生成
+      const aiResponse = await generateGeminiResponse(message, chatHistory.messages);
+
+      // AI応答を追加
+      chatHistory.messages.push({
+        role: MessageRole.ASSISTANT,
+        content: aiResponse,
+        timestamp: new Date()
+      });
+
       await chatHistory.save();
 
-      // AIレスポンスを生成
-      try {
-        const aiResponse = await generateGeminiResponse(message, chatHistory.messages);
-        const assistantMessage: Message = {
-          role: MessageRole.ASSISTANT,
-          content: aiResponse,
-          timestamp: new Date()
-        };
-        
-        chatHistory.messages.push(assistantMessage);
-        await chatHistory.save();
-
-        return res.json({
-          success: true,
-          message: assistantMessage
-        });
-      } catch (aiError) {
-        logger.error('AI response generation failed:', aiError);
-        throw new AppError({
-          statusCode: 500,
-          message: ErrorMessages.AI_RESPONSE_FAILED,
-          type: ErrorType.AI_ERROR
-        });
-      }
+      res.json({
+        success: true,
+        message: aiResponse
+      });
     } catch (error) {
-      logger.error('Message processing failed:', error);
+      logger.error('メッセージの送信に失敗しました', { error });
       if (error instanceof AppError) {
         throw error;
       }
       throw new AppError({
         statusCode: 500,
-        message: ErrorMessages.MESSAGE_PROCESSING_FAILED,
-        type: ErrorType.SERVER_ERROR
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -142,27 +135,32 @@ export class ChatController {
   static async endSession(req: Request, res: Response) {
     try {
       const { sessionId } = req.params;
-      
-      const session = await ChatHistory.findOne({ sessionId });
+      const session = await ChatHistory.findById(sessionId);
+
       if (!session) {
-        return res.status(404).json({
-          success: false,
-          message: 'セッションが見つかりません'
+        throw new AppError({
+          statusCode: 404,
+          message: ErrorMessages[ErrorType.NOT_FOUND].ja,
+          type: ErrorType.NOT_FOUND
         });
       }
 
       session.metadata.endTime = new Date();
       await session.save();
 
-      res.status(200).json({
+      res.json({
         success: true,
         message: 'セッションを終了しました'
       });
     } catch (error) {
-      console.error('Error ending chat session:', error);
-      res.status(500).json({
-        success: false,
-        message: 'セッションの終了に失敗しました'
+      logger.error('セッションの終了に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -170,28 +168,42 @@ export class ChatController {
   // フィードバックの送信
   static async sendFeedback(req: Request, res: Response) {
     try {
-      const { sessionId, feedback } = req.body;
-      
-      const session = await ChatHistory.findOne({ sessionId });
+      const { sessionId } = req.params;
+      const { feedback } = req.body;
+
+      if (!feedback) {
+        throw new ValidationError(
+          ErrorMessages[ErrorType.VALIDATION].ja,
+          ['フィードバックが入力されていません']
+        );
+      }
+
+      const session = await ChatHistory.findById(sessionId);
+
       if (!session) {
-        return res.status(404).json({
-          success: false,
-          message: 'セッションが見つかりません'
+        throw new AppError({
+          statusCode: 404,
+          message: ErrorMessages[ErrorType.NOT_FOUND].ja,
+          type: ErrorType.NOT_FOUND
         });
       }
 
       session.metadata.userFeedback = feedback;
       await session.save();
 
-      res.status(200).json({
+      res.json({
         success: true,
-        message: 'フィードバックを保存しました'
+        message: 'フィードバックを送信しました'
       });
     } catch (error) {
-      console.error('Error sending feedback:', error);
-      res.status(500).json({
-        success: false,
-        message: 'フィードバックの送信に失敗しました'
+      logger.error('フィードバックの送信に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -215,10 +227,11 @@ export class ChatController {
         total
       });
     } catch (error) {
-      console.error('Error getting session history:', error);
-      res.status(500).json({
-        success: false,
-        message: 'セッション履歴の取得に失敗しました'
+      logger.error('セッション履歴の取得に失敗しました', { error });
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -229,7 +242,15 @@ export class ChatController {
       const userId = req.user.id;
       await ChatHistory.findOneAndUpdate(
         { userId },
-        { $set: { messages: [] } },
+        {
+          $set: {
+            messages: [{
+              role: MessageRole.SYSTEM,
+              content: '占い師AIアシスタントとして、ユーザーの相談に乗り、的確なアドバイスを提供します。',
+              timestamp: new Date()
+            }]
+          }
+        },
         { upsert: true }
       );
 
@@ -238,8 +259,8 @@ export class ChatController {
       logger.error('チャット履歴のクリアに失敗しました', { error });
       throw new AppError({
         statusCode: 500,
-        message: ErrorMessages.SERVER_ERROR,
-        type: ErrorType.SERVER_ERROR
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }

@@ -1,5 +1,33 @@
 import { getGeminiResponse } from './ai';
 
+// タロットカード画像の定義
+export const CARD_IMAGES = {
+  cards: {
+    THE_FOOL: '/tarot/fool.jpg',
+    THE_MAGICIAN: '/tarot/magician.jpg',
+    THE_HIGH_PRIESTESS: '/tarot/high_priestess.jpg',
+    THE_EMPRESS: '/tarot/empress.jpg',
+    THE_EMPEROR: '/tarot/emperor.jpg',
+    THE_HIEROPHANT: '/tarot/hierophant.jpg',
+    THE_LOVERS: '/tarot/lovers.jpg',
+    THE_CHARIOT: '/tarot/chariot.jpg',
+    STRENGTH: '/tarot/strength.jpg',
+    THE_HERMIT: '/tarot/hermit.jpg',
+    WHEEL_OF_FORTUNE: '/tarot/wheel_of_fortune.jpg',
+    JUSTICE: '/tarot/justice.jpg',
+    THE_HANGED_MAN: '/tarot/hanged_man.jpg',
+    DEATH: '/tarot/death.jpg',
+    TEMPERANCE: '/tarot/temperance.jpg',
+    THE_DEVIL: '/tarot/devil.jpg',
+    THE_TOWER: '/tarot/tower.jpg',
+    THE_STAR: '/tarot/star.jpg',
+    THE_MOON: '/tarot/moon.jpg',
+    THE_SUN: '/tarot/sun.jpg',
+    JUDGEMENT: '/tarot/judgement.jpg',
+    THE_WORLD: '/tarot/world.jpg'
+  }
+};
+
 // 型定義
 export type SpreadType = 'SINGLE' | 'THREE_CARD' | 'CELTIC_CROSS';
 

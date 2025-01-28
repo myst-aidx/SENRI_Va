@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { MBTIResult } from '../types/mbti';
+import { loadMBTIHistory } from '../utils/mbtiStorage';
 
 interface HistoryItem {
   id: string;
@@ -34,11 +36,13 @@ const HistoryPage: React.FC = () => {
   const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mbtiResults, setMbtiResults] = useState<MBTIResult[]>([]);
 
   useEffect(() => {
     // デモデータを表示
     setHistoryData(DEMO_HISTORY);
     setLoading(false);
+    setMbtiResults(loadMBTIHistory());
   }, []);
 
   if (loading) {
@@ -87,6 +91,24 @@ const HistoryPage: React.FC = () => {
       ) : (
         <p className="text-purple-300 text-center">履歴がありません</p>
       )}
+
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-6">MBTI診断履歴</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {mbtiResults.map((result, index) => (
+            <div key={index} className="bg-white bg-opacity-10 p-4 rounded-lg">
+              <h3 className="text-xl font-semibold">{result.type}</h3>
+              <p className="text-sm opacity-75">{new Date(result.timestamp).toLocaleString()}</p>
+              <div className="mt-2">
+                <p className="font-medium">強み:</p>
+                <ul className="list-disc pl-5">
+                  {result.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

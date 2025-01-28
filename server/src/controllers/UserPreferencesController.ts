@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { UserPreferences } from '../models/UserPreferences';
+import { AppError, ErrorType, ValidationError } from '../types/errors';
+import { ErrorMessages } from '../constants/errorMessages';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UserPreferencesController');
 
 export class UserPreferencesController {
   // ユーザー設定の取得
@@ -56,24 +61,42 @@ export class UserPreferencesController {
   // 占い設定の更新
   static async updateFortunePreferences(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      const fortunePreferences = req.body;
+      const userId = req.user.id;
+      const { fortuneType, autoSave, showDetails } = req.body;
+
+      // 入力値の検証
+      if (fortuneType && !['tarot', 'astrology', 'numerology'].includes(fortuneType)) {
+        throw new ValidationError(
+          ErrorMessages[ErrorType.VALIDATION].ja,
+          ['無効な占いタイプが指定されました']
+        );
+      }
 
       const preferences = await UserPreferences.findOneAndUpdate(
         { userId },
-        { $set: { fortunePreferences } },
-        { new: true, upsert: true, runValidators: true }
+        {
+          $set: {
+            'fortune.type': fortuneType,
+            'fortune.autoSave': autoSave ?? true,
+            'fortune.showDetails': showDetails ?? true
+          }
+        },
+        { upsert: true, new: true }
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
+        message: '占い設定を更新しました',
         preferences
       });
     } catch (error) {
-      console.error('Error updating fortune preferences:', error);
-      res.status(500).json({
-        success: false,
-        message: '占い設定の更新に失敗しました'
+      logger.error('占い設定の更新に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -81,24 +104,34 @@ export class UserPreferencesController {
   // AIチャット設定の更新
   static async updateAIChatPreferences(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      const aiChatPreferences = req.body;
+      const userId = req.user.id;
+      const { autoComplete, suggestQuestions, saveHistory } = req.body;
 
       const preferences = await UserPreferences.findOneAndUpdate(
         { userId },
-        { $set: { aiChatPreferences } },
-        { new: true, upsert: true, runValidators: true }
+        {
+          $set: {
+            'aiChat.autoComplete': autoComplete ?? true,
+            'aiChat.suggestQuestions': suggestQuestions ?? true,
+            'aiChat.saveHistory': saveHistory ?? true
+          }
+        },
+        { upsert: true, new: true }
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
+        message: 'AIチャット設定を更新しました',
         preferences
       });
     } catch (error) {
-      console.error('Error updating AI chat preferences:', error);
-      res.status(500).json({
-        success: false,
-        message: 'AIチャット設定の更新に失敗しました'
+      logger.error('AIチャット設定の更新に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -106,24 +139,49 @@ export class UserPreferencesController {
   // 表示設定の更新
   static async updateDisplayPreferences(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      const displayPreferences = req.body;
+      const userId = req.user.id;
+      const { fontSize, colorScheme, animationEnabled } = req.body;
+
+      // 入力値の検証
+      if (fontSize && !['small', 'medium', 'large'].includes(fontSize)) {
+        throw new ValidationError(
+          ErrorMessages[ErrorType.VALIDATION].ja,
+          ['無効なフォントサイズが指定されました']
+        );
+      }
+
+      if (colorScheme && !['light', 'dark', 'auto'].includes(colorScheme)) {
+        throw new ValidationError(
+          ErrorMessages[ErrorType.VALIDATION].ja,
+          ['無効なカラースキームが指定されました']
+        );
+      }
 
       const preferences = await UserPreferences.findOneAndUpdate(
         { userId },
-        { $set: { displayPreferences } },
-        { new: true, upsert: true, runValidators: true }
+        {
+          $set: {
+            'display.fontSize': fontSize || 'medium',
+            'display.colorScheme': colorScheme || 'auto',
+            'display.animationEnabled': animationEnabled ?? true
+          }
+        },
+        { upsert: true, new: true }
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
+        message: '表示設定を更新しました',
         preferences
       });
     } catch (error) {
-      console.error('Error updating display preferences:', error);
-      res.status(500).json({
-        success: false,
-        message: '表示設定の更新に失敗しました'
+      logger.error('表示設定の更新に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }
@@ -131,24 +189,34 @@ export class UserPreferencesController {
   // プライバシー設定の更新
   static async updatePrivacySettings(req: Request, res: Response) {
     try {
-      const { userId } = req.params;
-      const privacySettings = req.body;
+      const userId = req.user.id;
+      const { dataSharing, activityTracking, marketingEmails } = req.body;
 
       const preferences = await UserPreferences.findOneAndUpdate(
         { userId },
-        { $set: { privacySettings } },
-        { new: true, upsert: true, runValidators: true }
+        {
+          $set: {
+            'privacy.dataSharing': dataSharing ?? false,
+            'privacy.activityTracking': activityTracking ?? false,
+            'privacy.marketingEmails': marketingEmails ?? false
+          }
+        },
+        { upsert: true, new: true }
       );
 
-      res.status(200).json({
-        success: true,
+      res.json({
+        message: 'プライバシー設定を更新しました',
         preferences
       });
     } catch (error) {
-      console.error('Error updating privacy settings:', error);
-      res.status(500).json({
-        success: false,
-        message: 'プライバシー設定の更新に失敗しました'
+      logger.error('プライバシー設定の更新に失敗しました', { error });
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        message: ErrorMessages[ErrorType.SERVER].ja,
+        type: ErrorType.SERVER
       });
     }
   }

@@ -108,6 +108,160 @@ export function calculateDestinyNumber(birthDate: string): number {
   return sum;
 }
 
+// ポジティブな特徴を取得
+function getPositiveTraits(destinyNumber: number): string[] {
+  const traitsMap: Record<number, string[]> = {
+    1: [
+      'リーダーシップがある',
+      '独創性に優れている',
+      '創造力が豊か',
+      '決断力がある',
+      '目標達成への意志が強い'
+    ],
+    2: [
+      '協調性がある',
+      '直感力が鋭い',
+      '思いやりがある',
+      '繊細な感受性',
+      '平和を重んじる'
+    ],
+    3: [
+      '表現力が豊か',
+      '芸術的センスがある',
+      '社交的',
+      '楽観的',
+      'コミュニケーション能力が高い'
+    ],
+    4: [
+      '実務能力が高い',
+      '確実性を重視する',
+      '忍耐強い',
+      '着実',
+      '責任感がある'
+    ],
+    5: [
+      '自由を愛する',
+      '冒険心がある',
+      '適応力がある',
+      '変化を好む',
+      '好奇心旺盛'
+    ],
+    6: [
+      '責任感が強い',
+      '面倒見が良い',
+      '調和を大切にする',
+      '愛情深い',
+      'バランス感覚がある'
+    ],
+    7: [
+      '分析力に優れている',
+      '探究心がある',
+      '精神性が高い',
+      '知性がある',
+      '洞察力がある'
+    ],
+    8: [
+      '組織力がある',
+      '効率的',
+      '現実的',
+      '目標達成力がある',
+      'リーダーシップがある'
+    ],
+    9: [
+      '博愛精神がある',
+      '奉仕の精神がある',
+      '理想を追求する',
+      '寛容',
+      '包容力がある'
+    ]
+  };
+  return traitsMap[destinyNumber] || [];
+}
+
+// AIの応答から情報を抽出する
+function parseAIResponse(response: string, destinyNumber: number): {
+  description: string;
+  detailedDescription: string;
+  positiveTraits: string[];
+  challenges: string[];
+  compatibleNumbers: number[];
+  luckyItems: string[];
+} {
+  // 全体的な傾向と意味を抽出
+  const descriptionMatch = response.match(/\*\*全体的な傾向と意味\*\*\n\n([\s\S]*?)(?=\n\*\*)/);
+  const description = descriptionMatch ? descriptionMatch[1].trim() : '';
+
+  // 詳細な説明を作成
+  const detailedDescription = response.replace(/\*\*/g, '').trim();
+
+  // ポジティブな特徴を抽出
+  let positiveTraits: string[] = [];
+  const traitsMatch = response.match(/\*\*ポジティブな特徴\*\*\n\n([\s\S]*?)(?=\n\*\*)/);
+  if (traitsMatch) {
+    const traits = traitsMatch[1].split('\n').filter(line => line.trim().startsWith('*'));
+    positiveTraits = traits.map(trait => trait.replace('*', '').trim());
+  }
+  // AIからの抽出が失敗した場合は事前定義された特徴を使用
+  if (positiveTraits.length === 0) {
+    positiveTraits = getPositiveTraits(destinyNumber);
+  }
+
+  // 課題を抽出
+  const challenges: string[] = [];
+  const challengesMatch = response.match(/\*\*注意点と可能性\*\*\n\n([\s\S]*?)$/);
+  if (challengesMatch) {
+    const challengeLines = challengesMatch[1].split('\n').filter(line => line.trim().startsWith('*'));
+    challenges.push(...challengeLines.map(line => line.replace('*', '').trim()));
+  }
+
+  // 相性の良い数字を抽出（運命数に基づいて設定）
+  const compatibleNumbers = getCompatibleNumbers(destinyNumber);
+
+  // ラッキーアイテムを設定（運命数に基づいて設定）
+  const luckyItems = getLuckyItems(destinyNumber);
+
+  return {
+    description,
+    detailedDescription,
+    positiveTraits,
+    challenges,
+    compatibleNumbers,
+    luckyItems
+  };
+}
+
+// 相性の良い数字を取得
+function getCompatibleNumbers(destinyNumber: number): number[] {
+  const compatibilityMap: Record<number, number[]> = {
+    1: [3, 5, 9],
+    2: [4, 6, 8],
+    3: [1, 6, 9],
+    4: [2, 7, 8],
+    5: [1, 7, 9],
+    6: [2, 3, 9],
+    7: [4, 5, 8],
+    8: [2, 4, 7],
+    9: [1, 3, 5, 6]
+  };
+  return compatibilityMap[destinyNumber] || [];
+}
+
+// ラッキーアイテムを取得
+function getLuckyItems(destinyNumber: number): string[] {
+  const luckyItemsMap: Record<number, string[]> = {
+    1: ['赤い服', '東向きの家具', 'ダイヤモンド'],
+    2: ['白い服', '銀のアクセサリー', '月のモチーフ'],
+    3: ['黄色い小物', '三角形のアイテム', '東向きの窓'],
+    4: ['緑の植物', '四角形のアイテム', '南東向きの家具'],
+    5: ['水色の小物', '星のモチーフ', '中央に置くアイテム'],
+    6: ['ピンクの服', 'ハート型のアイテム', '西向きの家具'],
+    7: ['紫の小物', '七芒星のモチーフ', '西向きの窓'],
+    8: ['黒い服', '八角形のアイテム', '北向きの家具'],
+    9: ['金色のアクセサリー', '円形のアイテム', '南向きの家具']
+  };
+  return luckyItemsMap[destinyNumber] || [];
+}
+
 // 数秘術の結果を生成
 export async function generateNumerologyReading(params: NumerologyParams): Promise<NumerologyReading> {
   try {
@@ -129,6 +283,16 @@ export async function generateNumerologyReading(params: NumerologyParams): Promi
       throw new NumerologyError('AIによる解釈の生成に失敗しました', ERROR_CODES.AI_ERROR);
     }
 
+    // AIの応答から情報を抽出
+    const {
+      description,
+      detailedDescription,
+      positiveTraits,
+      challenges,
+      compatibleNumbers,
+      luckyItems
+    } = parseAIResponse(aiResponse.content, destinyNumber);
+
     return {
       type: 'numerology',
       reading: aiResponse.content,
@@ -136,7 +300,13 @@ export async function generateNumerologyReading(params: NumerologyParams): Promi
       birthDate: params.birthDate,
       name: params.name,
       destinyNumber,
-      nameNumber
+      nameNumber,
+      description,
+      detailedDescription,
+      positiveTraits,
+      challenges,
+      compatibleNumbers,
+      luckyItems
     };
   } catch (error) {
     if (error instanceof NumerologyError) {

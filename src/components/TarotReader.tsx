@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Home } from 'lucide-react';
 import { 
   generateTarotReading, 
   generateTarotChatResponse,
@@ -13,6 +14,7 @@ import {
 } from '../utils/tarot';
 import { classNames } from '../utils/styles';
 import LoadingSpinner from './LoadingSpinner';
+import FortuneChat from './FortuneChat';
 
 // 型定義
 interface TarotReaderProps {
@@ -230,6 +232,39 @@ const MysticSymbol: React.FC = () => (
   </svg>
 );
 
+const validateQuestionInput = (input: string) => {
+  if (input.length > 500) {
+    throw new TarotError('質問は500文字以内で入力してください', 'CONTENT_TOO_LONG');
+  }
+  if (/[<>]/.test(input)) {
+    throw new TarotError('無効な文字が含まれています', 'INVALID_CONTENT');
+  }
+};
+
+// TarotError クラスの定義
+class TarotError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'TarotError';
+  }
+}
+
+// LoadingOverlay コンポーネントの修正
+const LoadingOverlay: React.FC<{ message?: string }> = ({ message }) => (
+  <motion.div
+    className="absolute inset-0 bg-black/50 flex items-center justify-center"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+  >
+    <div className="text-center space-y-4">
+      <LoadingSpinner />
+      <p className="text-purple-200 animate-pulse">
+        {message || 'カードの意味を読み解いています...'}
+      </p>
+    </div>
+  </motion.div>
+);
+
 export default function TarotReader({ onFeedback }: TarotReaderProps) {
   const navigate = useNavigate();
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -249,6 +284,8 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [animationState, setAnimationState] = useState<'initial' | 'selecting' | 'flipping' | 'complete'>('initial');
+  const [cardPosition, setCardPosition] = useState({ x: 0, y: 0 });
 
   // チャットメッセージが追加されたら自動スクロール
   useEffect(() => {
@@ -276,11 +313,14 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
 
   // カードを引く処理
   const handleDrawCard = useCallback(async () => {
-    try {
-      setError(null);
-      setDrawingCard(true);
-      setIsLoading(true);
+    setIsLoading(true);
+    setAnimationState('selecting');
 
+    // カードを選ぶアニメーション
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setAnimationState('flipping');
+
+    try {
       const pattern = SPREAD_PATTERNS[spreadType];
       const drawnCards = drawCards(pattern.positions.length);
       setSelectedCards(drawnCards);
@@ -293,21 +333,25 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
       const readingResult = await generateTarotReading(spreadType, "今日の運勢を教えてください", drawnCards);
       setReading(readingResult);
 
+      // カードが裏返っている状態でAIの処理を待つ
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 結果を表示
+      setAnimationState('complete');
       setShowDeck(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : '占いの生成中にエラーが発生しました');
       console.error('Tarot reading error:', err);
+      setAnimationState('initial');
     } finally {
-      setDrawingCard(false);
       setIsLoading(false);
     }
   }, [spreadType]);
 
   // チャットメッセージを送信
   const handleSendMessage = async (message: string) => {
-    if (!message.trim()) return;
-
     try {
+      validateQuestionInput(message);
       setIsChatLoading(true);
       setChatMessages(prev => [...prev, { role: 'user', content: message }]);
       setChatInput('');
@@ -318,26 +362,72 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
       if (chatMessagesRef.current) {
         chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'チャットの生成中にエラーが発生しました');
-      console.error('Chat error:', err);
+    } catch (error) {
+      if (error instanceof TarotError) {
+        setError(error.message);
+      }
     } finally {
       setIsChatLoading(false);
     }
   };
 
+  const handleStartReading = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // カード選択のバリデーション
+      if (selectedCards.length !== SPREAD_PATTERNS[spreadType].positions.length) {
+        throw new TarotError('必要な枚数のカードを選択してください', 'INVALID_CARD');
+      }
+
+      const reading = await generateTarotReading(
+        spreadType,
+        "今日の運勢を教えてください",
+        selectedCards
+      );
+      
+      setReading(reading);
+      setAnimationState('complete');
+    } catch (error) {
+      if (error instanceof TarotError) {
+        setError(error.message);
+      } else {
+        setError('リーディングの生成中に予期せぬエラーが発生しました');
+        console.error('Reading error:', error);
+      }
+      setAnimationState('initial');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // エラー表示用コンポーネント
+  const ErrorMessage = ({ message }: { message: string }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-4 bg-red-900/30 rounded-lg"
+    >
+      <div className="flex items-center gap-2 text-red-300">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span>{message}</span>
+      </div>
+      <button
+        onClick={() => setError(null)}
+        className="mt-2 text-sm text-red-200 hover:text-red-100"
+      >
+        再試行する
+      </button>
+    </motion.div>
+  );
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900 p-8">
       {/* ローディング画面 */}
-      <AnimatePresence>
-        {(isLoading || drawingCard) && (
-          <LoadingSpinner message={
-            drawingCard ? 'カードを選んでいます...' : 
-            isLoading ? 'カードを読み解いています...' : 
-            '占い中...'
-          } />
-        )}
-      </AnimatePresence>
+      {isLoading && <LoadingOverlay message="タロットカードからのメッセージを受け取っています..." />}
 
       <div className="max-w-[1920px] mx-auto px-4 py-6">
         {/* ヘッダー */}
@@ -349,15 +439,15 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
             onClick={() => navigate('/fortune')}
             className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-lg transition-colors"
           >
-            占い選択に戻る
+            占術メニューに戻る
           </button>
         </header>
 
         {/* メインコンテンツ */}
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
-          {/* 左カラム：スプレッド選択、デッキ、カード表示 */}
+          {/* 左カラム：スプレッド選択、デッキ */}
           <div className="lg:sticky lg:top-6 lg:self-start space-y-6">
-            <div style={styles.section} className="p-6">
+            <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
               <div className="space-y-4">
                 <label className="block text-lg font-medium text-purple-200">
                   スプレッドを選択
@@ -365,7 +455,8 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
                 <select
                   value={spreadType}
                   onChange={(e) => handleSpreadChange(e.target.value as SpreadType)}
-                  className="w-full p-3 bg-purple-900/30 border border-purple-500/30 rounded-lg text-purple-100 focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                  className="w-full p-3 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                  disabled={isLoading || !!reading}
                 >
                   {Object.entries(SPREAD_PATTERNS).map(([key, { name }]) => (
                     <option key={key} value={key}>
@@ -376,236 +467,151 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
               </div>
 
               {/* デッキ */}
-              {showDeck && (
-                <div className="relative w-[150px] h-[225px] mx-auto my-6">
-                  <motion.div
-                    style={styles.cardBack}
-                    className="absolute w-full h-full rounded-xl overflow-hidden"
-                    variants={animations.deck}
-                    initial="initial"
-                    animate={drawingCard ? "drawing" : "initial"}
-                    custom={drawingIndex}
-                  />
+              {!reading && (
+                <div className="relative h-[400px] flex items-center justify-center mt-6">
+                  <AnimatePresence mode="wait">
+                    {animationState === 'initial' && (
+                      <motion.div
+                        key="initial"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-center"
+                      >
+                        <button
+                          onClick={handleDrawCard}
+                          disabled={isLoading}
+                          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        >
+                          カードを引く
+                        </button>
+                      </motion.div>
+                    )}
+
+                    {animationState === 'selecting' && (
+                      <motion.div
+                        key="selecting"
+                        className="absolute"
+                        animate={{
+                          x: [-200, 200, -200],
+                          y: [-100, 100, -100],
+                        }}
+                        transition={{
+                          duration: 2,
+                          ease: "easeInOut",
+                          repeat: Infinity,
+                        }}
+                      >
+                        <img
+                          src={CARD_IMAGES.back}
+                          alt="タロットカード"
+                          className="w-48 h-auto"
+                        />
+                      </motion.div>
+                    )}
+
+                    {animationState === 'flipping' && (
+                      <motion.div
+                        key="flipping"
+                        className="absolute"
+                        initial={{ rotateY: 0 }}
+                        animate={{ rotateY: 360 }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "linear"
+                        }}
+                      >
+                        <img
+                          src={CARD_IMAGES.back}
+                          alt="タロットカード"
+                          className="w-48 h-auto"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
-
-              <button
-                onClick={handleDrawCard}
-                disabled={isLoading}
-                className={classNames(
-                  "w-full py-3 rounded-lg font-medium transition-all duration-300",
-                  "bg-gradient-to-r from-purple-500 to-pink-500",
-                  "hover:from-purple-600 hover:to-pink-600",
-                  "focus:outline-none focus:ring-2 focus:ring-purple-400",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                  "text-white shadow-lg"
-                )}
-              >
-                {isLoading ? 'カードを選んでいます...' : 'カードを引く'}
-              </button>
             </div>
 
             {/* 選ばれたカード */}
-            {selectedCards.length > 0 && (
-              <div style={styles.section} className="p-6">
-                <div className={classNames(
-                  'grid',
-                  spreadType === 'SINGLE' && 'grid-cols-1 place-items-center',
-                  spreadType === 'THREE_CARD' && 'grid-cols-3 gap-x-4',
-                  spreadType === 'CELTIC_CROSS' && 'grid-cols-2 gap-4'
-                )}>
-                  <AnimatePresence mode="wait">
-                    {selectedCards.map((cardKey, index) => (
-                      <motion.div
-                        key={cardKey}
-                        variants={animations.card}
-                        initial="initial"
-                        animate="enter"
-                        whileHover="hover"
-                        custom={index}
-                        className="relative"
-                      >
-                        <div className="w-[120px] h-[180px] rounded-xl shadow-xl overflow-hidden">
-                          <img
-                            src={CARD_IMAGES.cards[cardKey as keyof typeof CARD_IMAGES.cards]}
-                            alt={TAROT_CARDS[cardKey].name}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300">
-                            <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                              <h4 className="font-bold text-xs mb-1">
-                                {SPREAD_PATTERNS[spreadType].positions[index].meaning}
-                              </h4>
-                              <p className="text-xs opacity-90">
-                                {TAROT_CARDS[cardKey].name}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+            {reading && selectedCards.length > 0 && (
+              <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">引いたカード</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {selectedCards.map((card, index) => (
+                    <motion.div
+                      key={card}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.2 }}
+                      className="relative aspect-[2/3] rounded-xl overflow-hidden"
+                    >
+                      <img
+                        src={CARD_IMAGES.cards[card as keyof typeof CARD_IMAGES.cards]}
+                        alt={card}
+                        className="w-full h-full object-cover rounded-xl"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="text-lg font-semibold text-white">{card}</h3>
+                        <p className="text-sm text-white/80">{cardDetails[index]}</p>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
 
-          {/* 右カラム：リーディング結果 */}
+          {/* 右カラム：リーディング結果とチャット */}
           {reading && (
-            <div style={styles.section} className="p-6">
-              <h2 className="text-xl font-semibold text-purple-200 mb-6">
-                タロットからのメッセージ
-              </h2>
-              <div className="prose prose-invert max-w-none">
-                {reading.split('\n').map((line, index) => {
-                  if (line.startsWith('【')) {
-                    return (
-                      <h3 key={index} className="text-lg font-bold text-purple-200 mt-6 mb-3">
-                        {line}
-                      </h3>
-                    );
-                  }
-                  if (line.startsWith('**')) {
-                    return (
-                      <h4 key={index} className="text-base font-semibold text-purple-300 mt-4 mb-2">
-                        {line.replace(/\*\*/g, '')}
-                      </h4>
-                    );
-                  }
-                  if (line.trim() === '') {
-                    return <br key={index} />;
-                  }
-                  return (
-                    <p key={index} className="text-purple-100 leading-relaxed mb-3">
-                      {line}
-                    </p>
-                  );
-                })}
+            <div className="space-y-6">
+              <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">タロットからのメッセージ</h2>
+                <div className="prose prose-invert max-w-none">
+                  <div className="whitespace-pre-wrap">{reading}</div>
+                </div>
               </div>
 
-              <button
-                onClick={() => setShowChat(true)}
-                className="mt-6 px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 rounded-lg transition-colors"
-              >
-                詳しく質問する
-              </button>
+              <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
+                <FortuneChat
+                  fortuneType="tarot"
+                  context={{
+                    type: "tarot",
+                    reading: reading,
+                    additionalInfo: {
+                      cards: selectedCards,
+                      details: cardDetails
+                    }
+                  }}
+                  initialMessage="タロットカードについて、気になることを質問してください。"
+                  initialSuggestions={[
+                    { text: "このカードの意味をもっと詳しく教えて", label: "意味" },
+                    { text: "恋愛についての示唆は？", label: "恋愛" },
+                    { text: "仕事への影響は？", label: "仕事" },
+                    { text: "今後の展開について", label: "未来" }
+                  ]}
+                />
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    setReading(null);
+                    setSelectedCards([]);
+                    setCardDetails([]);
+                    setAnimationState('initial');
+                    setShowDeck(true);
+                  }}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  もう一度占う
+                </button>
+              </div>
             </div>
           )}
         </div>
-
-        {/* チャットモーダル */}
-        <AnimatePresence>
-          {showChat && (
-            <div className="fixed inset-0 z-50">
-              <motion.div
-                className="absolute inset-0 bg-black/50"
-                variants={animations.chat.overlay}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                onClick={() => setShowChat(false)}
-              />
-              
-              <div className="absolute inset-0 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-                  <motion.div
-                    style={styles.section}
-                    className="w-full max-w-2xl bg-purple-900/95"
-                    variants={animations.chat.modal}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                  >
-                    {/* チャットヘッダー */}
-                    <div className="p-6 flex justify-between items-center border-b border-purple-500/20">
-                      <h2 className="text-xl font-semibold text-purple-200">
-                        カードとの対話
-                      </h2>
-                      <button
-                        onClick={() => setShowChat(false)}
-                        className="text-purple-200 hover:text-purple-100 transition-colors"
-                      >
-                        <span className="sr-only">閉じる</span>
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    {/* チャットメッセージ */}
-                    <div 
-                      ref={chatMessagesRef}
-                      className="p-6 max-h-[50vh] overflow-y-auto space-y-4"
-                    >
-                      {chatMessages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={classNames(
-                            'p-4 rounded-lg max-w-[80%]',
-                            message.role === 'user' 
-                              ? 'bg-purple-500/20 ml-auto' 
-                              : 'bg-purple-900/30 mr-auto'
-                          )}
-                        >
-                          <p className="text-purple-100 leading-relaxed whitespace-pre-wrap">
-                            {message.content}
-                          </p>
-                        </div>
-                      ))}
-                      {isChatLoading && (
-                        <div className="bg-purple-900/30 p-4 rounded-lg mr-auto max-w-[80%]">
-                          <p className="text-purple-300">
-                            タロットカードから返答を受け取っています...
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* チャット入力 */}
-                    <div className="p-6 border-t border-purple-500/20">
-                      <div className="flex gap-3">
-                        <input
-                          ref={chatInputRef}
-                          type="text"
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage(chatInput);
-                            }
-                          }}
-                          placeholder="カードについて質問してください..."
-                          className={classNames(
-                            "flex-1 p-3 rounded-lg",
-                            "bg-purple-900/30 border border-purple-500/30",
-                            "text-purple-100 placeholder-purple-400",
-                            "focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-                          )}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleSendMessage(chatInput);
-                          }}
-                          disabled={isChatLoading || !chatInput.trim()}
-                          className={classNames(
-                            "px-6 py-3 rounded-lg transition-colors",
-                            "bg-purple-500/20 hover:bg-purple-500/30",
-                            "disabled:bg-purple-600/10 disabled:cursor-not-allowed",
-                            "text-purple-200"
-                          )}
-                        >
-                          送信
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

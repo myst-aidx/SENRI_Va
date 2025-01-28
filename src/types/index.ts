@@ -20,6 +20,12 @@ export interface NumerologyReading extends FortuneReading {
   name?: string;
   destinyNumber: number;
   nameNumber?: number;
+  description: string;
+  detailedDescription: string;
+  positiveTraits: string[];
+  challenges: string[];
+  compatibleNumbers: number[];
+  luckyItems: string[];
 }
 
 // 手相占いの結果型
@@ -32,4 +38,10 @@ export interface PalmReading extends FortuneReading {
 export interface DreamReading extends FortuneReading {
   type: 'dream';
   content: string;
+}
+
+// 数秘術のパラメータ型
+export interface NumerologyParams {
+  birthDate: string;
+  name?: string;
 }

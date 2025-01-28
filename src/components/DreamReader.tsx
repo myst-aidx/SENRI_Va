@@ -29,7 +29,12 @@ export default function DreamReader({ onSave, onFeedback }: DreamReaderProps) {
 
       // AI解釈の生成
       const result = await generateDreamReading(dreamContent);
-      setReading(result);
+      
+      // 結果をローカルストレージに保存
+      localStorage.setItem('dreamResult', JSON.stringify(result));
+
+      // 結果ページに遷移
+      navigate('/fortune/dream/result');
 
     } catch (err) {
       setError('夢の解析中にエラーが発生しました。もう一度お試しください。');

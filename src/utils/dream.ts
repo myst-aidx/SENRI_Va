@@ -1,25 +1,48 @@
-export async function generateDreamReading(dreamContent: string): Promise<string> {
-  // TODO: 実際のAI解析ロジックを実装
-  // 現在はダミーの結果を返す
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(`
-あなたの夢は以下のようなメッセージを含んでいます：
+import OpenAI from 'openai';
 
-夢の象徴的な意味：
-この夢は、あなたの内なる成長と変化を表しています。新しい可能性が開かれようとしている時期であり、
-直感的な判断力が高まっている状態を示唆しています。
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
+});
 
-現在の状況との関連：
-- 潜在的な才能や可能性が開花しようとしています
-- 周囲からのサポートを得られやすい時期です
-- 新しいプロジェクトや挑戦に適した時期です
+export async function generateDreamReading(dreamContent: string) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `あなたは夢占いの専門家です。ユーザーの夢の内容を解釈し、以下の形式でJSONを生成してください：
+{
+  "dreamTheme": "夢のテーマや主要な要素の解説",
+  "symbolism": "夢に登場する象徴の意味や解釈",
+  "reading": "夢の総合的な解釈とメッセージ",
+  "currentSituation": "現在の状況との関連",
+  "advice": ["具体的なアドバイスを箇条書きで3つ程度"]
+}`
+        },
+        {
+          role: "user",
+          content: `以下の夢を解釈してください：\n${dreamContent}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
 
-アドバイス：
-1. 直感を大切にし、新しい機会に対してオープンな姿勢を保ちましょう
-2. 周囲の人々との関係を大切にし、協力を求めることを恐れないでください
-3. 自己実現に向けて、具体的な一歩を踏み出すことをお勧めします
-      `.trim());
-    }, 2000);
-  });
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('APIからの応答が空です');
+
+    const result = JSON.parse(content);
+    
+    // 結果を整形して返す
+    return {
+      dreamTheme: result.dreamTheme,
+      symbolism: result.symbolism,
+      reading: `あなたの夢は以下のようなメッセージを含んでいます：\n\n現在の状況との関連：\n${result.currentSituation}\n\nアドバイス：\n${result.advice.map((adv: string, i: number) => `${i + 1}. ${adv}`).join('\n')}`,
+    };
+
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    throw new Error('夢の解釈に失敗しました');
+  }
 } 

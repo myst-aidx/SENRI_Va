@@ -1,33 +1,25 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
+import { useAuth } from '../auth/AuthContext';
 import { toast } from 'react-toastify';
-import { generateTestUserToken } from '../utils/testAuth';
+import { generateTestUserToken, validateTestUserPassword } from '../utils/testAuth';
 
 interface TestUserAuthModalProps {
   onClose: () => void;
+  onSuccess: () => void;
 }
 
-export default function TestUserAuthModal({ onClose }: TestUserAuthModalProps) {
+export default function TestUserAuthModal({ onClose, onSuccess }: TestUserAuthModalProps) {
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
   const { login } = useAuth();
-
-  const validatePassword = (pass: string): boolean => {
-    // 8桁の数字とアルファベットの組み合わせを要求
-    const hasNumber = /\d/.test(pass);
-    const hasLetter = /[a-zA-Z]/.test(pass);
-    const isEightChars = pass.length === 8;
-    return hasNumber && hasLetter && isEightChars;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!validatePassword(password)) {
+    if (!validateTestUserPassword(password)) {
       setError('パスワードは8桁の数字とアルファベットの組み合わせである必要があります');
       return;
     }
@@ -40,10 +32,9 @@ export default function TestUserAuthModal({ onClose }: TestUserAuthModalProps) {
       }
 
       // テストユーザーとしてログイン
-      await login('test@example.com', token);
+      await login(token);
       toast.success('テストユーザーとしてログインしました');
-      navigate('/fortune');
-      onClose();
+      onSuccess();
     } catch (err) {
       console.error('Test user authentication failed:', err);
       setError('認証に失敗しました。正しいパスワードを入力してください。');

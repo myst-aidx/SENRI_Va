@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { NumerologyParams, NumerologyReading } from '../types';
+import { NumerologyParams } from '../types';
 import { generateNumerologyReading } from '../utils/numerology';
+import { saveNumerologyResult } from '../utils/numerologyStorage';
 import LoadingSpinner from './LoadingSpinner';
 
 // アニメーション設定
@@ -12,11 +13,6 @@ const animations = {
   exit: { opacity: 0, y: -20 },
   transition: { duration: 0.3 }
 };
-
-interface Props {
-  onSave?: (reading: NumerologyReading) => void;
-  onFeedback?: (type: 'POSITIVE' | 'NEGATIVE') => void;
-}
 
 // 入力フォームコンポーネント
 const InputForm = React.memo(({ onSubmit, isLoading }: {
@@ -79,74 +75,9 @@ const InputForm = React.memo(({ onSubmit, isLoading }: {
   );
 });
 
-// 結果表示コンポーネント
-const ReadingResult = React.memo(({ reading, onSave, onFeedback }: {
-  reading: NumerologyReading;
-  onSave?: (reading: NumerologyReading) => void;
-  onFeedback?: (type: 'POSITIVE' | 'NEGATIVE') => void;
-}) => {
-  return (
-    <motion.div
-      role="article"
-      aria-label="数秘術解析結果"
-      className="space-y-4 sm:space-y-6"
-      {...animations}
-    >
-      <div className="bg-purple-900/30 p-4 sm:p-6 rounded-lg border border-purple-700/50">
-        <h2 className="text-lg sm:text-xl font-bold text-purple-100 mb-3 sm:mb-4">解析結果</h2>
-        <p className="whitespace-pre-wrap text-sm sm:text-base text-purple-200">{reading.reading}</p>
-        
-        <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
-          <p className="text-sm sm:text-base text-purple-100">
-            <span className="font-medium">運命数: </span>
-            {reading.destinyNumber}
-          </p>
-          {reading.nameNumber && (
-            <p className="text-sm sm:text-base text-purple-100">
-              <span className="font-medium">表現数: </span>
-              {reading.nameNumber}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        {onSave && (
-          <button
-            onClick={() => onSave(reading)}
-            className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-green-600 text-white rounded-lg text-sm sm:text-base hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            結果を保存
-          </button>
-        )}
-
-        {onFeedback && (
-          <div role="group" aria-label="フィードバック" className="w-full sm:w-auto flex gap-2 sm:gap-4">
-            <button
-              onClick={() => onFeedback('POSITIVE')}
-              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="良い結果でした"
-            >
-              👍 良い
-            </button>
-            <button
-              onClick={() => onFeedback('NEGATIVE')}
-              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-gray-600 text-white rounded-lg text-sm sm:text-base hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              aria-label="改善が必要です"
-            >
-              👎 改善が必要
-            </button>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-});
-
 // メインコンポーネント
-export function NumerologyReader({ onSave, onFeedback }: Props) {
+export function NumerologyReader() {
   const navigate = useNavigate();
-  const [reading, setReading] = useState<NumerologyReading | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -156,13 +87,16 @@ export function NumerologyReader({ onSave, onFeedback }: Props) {
     
     try {
       const result = await generateNumerologyReading(params);
-      setReading(result);
+      // 結果をローカルストレージに保存
+      saveNumerologyResult(result);
+      // 結果表示画面にリダイレクト
+      navigate('/fortune/numerology/result');
     } catch (err) {
       setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -194,15 +128,7 @@ export function NumerologyReader({ onSave, onFeedback }: Props) {
           </motion.div>
         )}
 
-        {!reading ? (
-          <InputForm onSubmit={handleSubmit} isLoading={isLoading} />
-        ) : (
-          <ReadingResult
-            reading={reading}
-            onSave={onSave}
-            onFeedback={onFeedback}
-          />
-        )}
+        <InputForm onSubmit={handleSubmit} isLoading={isLoading} />
       </AnimatePresence>
     </div>
   );

@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Home, History } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 import LoadingSpinner from './LoadingSpinner';
 import { generateAIInterpretation } from '../utils/fourPillarsAI';
+import FortuneChat from './FortuneChat';
 
 // 十干
 const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'] as const;
@@ -125,24 +126,74 @@ const generateTimeOptions = () => {
 export default function FourPillarsReader() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [birthDate, setBirthDate] = useState('');
-  const [birthTime, setBirthTime] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthDay, setBirthDay] = useState('');
+  const [birthHour, setBirthHour] = useState('');
+  const [birthMinute, setBirthMinute] = useState('');
   const [reading, setReading] = useState<Reading | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 年の選択肢を生成（1900年から現在まで）
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear; year >= 1900; year--) {
+      years.push(year);
+    }
+    return years;
+  }, []);
+
+  // 月の選択肢を生成
+  const monthOptions = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => i + 1);
+  }, []);
+
+  // 日の選択肢を生成
+  const dayOptions = useMemo(() => {
+    const year = parseInt(birthYear);
+    const month = parseInt(birthMonth);
+    if (isNaN(year) || isNaN(month)) return Array.from({ length: 31 }, (_, i) => i + 1);
+
+    const lastDay = new Date(year, month, 0).getDate();
+    return Array.from({ length: lastDay }, (_, i) => i + 1);
+  }, [birthYear, birthMonth]);
+
+  // 時の選択肢を生成
+  const hourOptions = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => i);
+  }, []);
+
+  // 分の選択肢を生成
+  const minuteOptions = useMemo(() => {
+    return Array.from({ length: 60 }, (_, i) => i);
+  }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    try {
-      const date = new Date(birthDate);
-      const time = parseTime(birthTime);
+    const year = parseInt(birthYear);
+    const month = parseInt(birthMonth);
+    const day = parseInt(birthDay);
+    const hour = parseInt(birthHour);
+    const minute = parseInt(birthMinute);
 
-      if (isNaN(date.getTime()) || !birthTime) {
-        throw new Error('生年月日と時刻を正しく入力してください。');
-      }
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) {
+      setError('正しい生年月日時を入力してください');
+      return;
+    }
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      setError('正しい時刻を入力してください');
+      return;
+    }
+
+    try {
+      const date = new Date(year, month - 1, day, hour, minute);
+      const time = parseTime(`${hour}:${minute}`);
 
       const fourPillars = calculateFourPillars(date, time);
       const mainElement = getMainElement(fourPillars);
@@ -166,7 +217,7 @@ export default function FourPillarsReader() {
     } finally {
       setIsLoading(false);
     }
-  }, [birthDate, birthTime]);
+  }, [birthYear, birthMonth, birthDay, birthHour, birthMinute]);
 
   const timeOptions = generateTimeOptions();
 
@@ -203,73 +254,132 @@ export default function FourPillarsReader() {
             </button>
           </div>
 
-          <motion.form
-            onSubmit={handleSubmit}
-            className="space-y-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4">
-                {error}
-              </div>
-            )}
+          {!reading && (
+            <motion.form
+              onSubmit={handleSubmit}
+              className="space-y-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4">
+                  {error}
+                </div>
+              )}
 
-            <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
-              <div className="mb-4">
-                <label htmlFor="birthDate" className="block text-sm font-medium mb-2">
-                  生年月日
-                </label>
-                <input
-                  type="date"
-                  id="birthDate"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full p-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
-                  required
-                />
-              </div>
+              <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-purple-200 mb-2">年</label>
+                      <select
+                        value={birthYear}
+                        onChange={(e) => setBirthYear(e.target.value)}
+                        className="w-full px-4 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                        required
+                        disabled={isLoading}
+                      >
+                        <option value="">選択</option>
+                        {yearOptions.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-purple-200 mb-2">月</label>
+                      <select
+                        value={birthMonth}
+                        onChange={(e) => setBirthMonth(e.target.value)}
+                        className="w-full px-4 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                        required
+                        disabled={isLoading}
+                      >
+                        <option value="">選択</option>
+                        {monthOptions.map(month => (
+                          <option key={month} value={month}>{month}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-purple-200 mb-2">日</label>
+                      <select
+                        value={birthDay}
+                        onChange={(e) => setBirthDay(e.target.value)}
+                        className="w-full px-4 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                        required
+                        disabled={isLoading}
+                      >
+                        <option value="">選択</option>
+                        {dayOptions.map(day => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  生まれた時刻（5分単位）
-                </label>
-                <select
-                  value={birthTime}
-                  onChange={(e) => setBirthTime(e.target.value)}
-                  required
-                  className="mt-1 block w-full px-3 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-purple-200 mb-2">時</label>
+                      <select
+                        value={birthHour}
+                        onChange={(e) => setBirthHour(e.target.value)}
+                        className="w-full px-4 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                        required
+                        disabled={isLoading}
+                      >
+                        <option value="">選択</option>
+                        {hourOptions.map(hour => (
+                          <option key={hour} value={hour}>{hour.toString().padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-purple-200 mb-2">分</label>
+                      <select
+                        value={birthMinute}
+                        onChange={(e) => setBirthMinute(e.target.value)}
+                        className="w-full px-4 py-2 bg-purple-800/50 border border-purple-700/50 rounded-lg text-purple-100"
+                        required
+                        disabled={isLoading}
+                      >
+                        <option value="">選択</option>
+                        {minuteOptions.map(minute => (
+                          <option key={minute} value={minute}>{minute.toString().padStart(2, '0')}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-purple-300 mb-4">
+                  <p>※時刻が不明な場合は、正午（12時00分）を選択してください。</p>
+                  <p>※より正確な鑑定のために、できるだけ正確な時刻を入力してください。</p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full mt-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                 >
-                  <option value="">時刻を選択</option>
-                  {timeOptions.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
+                  鑑定する
+                </button>
               </div>
+            </motion.form>
+          )}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full mt-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-              >
-                鑑定する
-              </button>
-            </div>
+          {isLoading && (
+            <LoadingSpinner message="四柱推命で運命を読み解いています..." />
+          )}
 
-            {isLoading && (
-              <LoadingSpinner message="四柱推命で運命を読み解いています..." />
-            )}
-
-            {reading && !isLoading && (
-              <motion.div
-                className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
+          {reading && !isLoading && (
+            <motion.div
+              className="space-y-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="p-6 bg-purple-900/30 border border-purple-700/50 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">四柱</h2>
                 <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className="text-center">
@@ -305,9 +415,32 @@ export default function FourPillarsReader() {
                 <div className="prose prose-invert max-w-none">
                   <pre className="whitespace-pre-wrap text-purple-100">{reading.interpretation}</pre>
                 </div>
-              </motion.div>
-            )}
-          </motion.form>
+
+                <div className="mt-8">
+                  <FortuneChat
+                    fortuneType="fourpillars"
+                    context={{
+                      type: "fourpillars",
+                      reading: reading.interpretation,
+                      additionalInfo: {
+                        fourPillars: reading.fourPillars,
+                        mainElement: reading.mainElement,
+                        lifeStage: reading.lifeStage
+                      }
+                    }}
+                    initialMessage="四柱推命の結果について、気になることを質問してください。"
+                    initialSuggestions={[
+                      { text: "五行の相性について詳しく教えて", label: "五行" },
+                      { text: "今年の運勢はどうですか？", label: "運勢" },
+                      { text: "相性の良い職業は？", label: "職業" },
+                      { text: "恋愛運について教えて", label: "恋愛" },
+                      { text: "金運を上げるにはどうしたら良い？", label: "金運" }
+                    ]}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
     </div>

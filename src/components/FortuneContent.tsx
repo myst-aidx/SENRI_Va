@@ -10,6 +10,7 @@ import AnimalReader from './AnimalReader';
 import FourPillarsReader from './FourPillarsReader';
 import HistoryPage from '../pages/HistoryPage';
 import FengshuiReader from './FengshuiReader';
+import MBTIReader from './MBTIReader';
 
 export function FortuneContent() {
   const location = useLocation();
@@ -22,6 +23,8 @@ export function FortuneContent() {
     }
 
     switch (path) {
+      case 'mbti':
+        return <MBTIReader />;
       case 'astrology':
         return <AstrologyChatBot />;
       case 'tarot':

@@ -1,43 +1,25 @@
 /// <reference types="cypress" />
 import { mount } from 'cypress/react18';
 import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from '../../src/contexts/AuthContext';
-import { ThemeProvider } from '../../src/contexts/ThemeContext';
-import { PersonalInfoProvider } from '../../src/contexts/PersonalInfoContext';
-import { LoadingProvider } from '../../src/contexts/LoadingContext';
-import '../../src/index.css';
+import { ThemeProvider } from '@mui/material/styles';
+import { theme } from '../../src/theme';
+import './commands';
 
 declare global {
   namespace Cypress {
     interface Chainable {
       mount: typeof mount;
-      intercept(
-        url: string | RegExp | Partial<Cypress.RequestOptions>,
-        response?: string | object | Function
-      ): Chainable<null>;
-      intercept(
-        method: string,
-        url: string | RegExp,
-        response?: string | object | Function
-      ): Chainable<null>;
     }
   }
 }
 
-Cypress.Commands.add('mount', (component: React.ReactNode) => {
+Cypress.Commands.add('mount', (component: React.ReactNode, options = {}) => {
   const wrapped = (
     <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <LoadingProvider>
-            <PersonalInfoProvider>
-              {component}
-            </PersonalInfoProvider>
-          </LoadingProvider>
-        </ThemeProvider>
-      </AuthProvider>
+      <ThemeProvider theme={theme}>
+        {component}
+      </ThemeProvider>
     </BrowserRouter>
   );
-
-  return mount(wrapped);
+  return mount(wrapped, options);
 });
