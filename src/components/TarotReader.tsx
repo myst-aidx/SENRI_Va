@@ -66,7 +66,7 @@ const SPREAD_PATTERNS: Record<SpreadType, SpreadPattern> = {
   }
 };
 
-// カード画像のパス定義
+// カード画像のパス定義（修正済み：画像フォルダのパスを/tarot/に変更）
 const CARD_IMAGES = {
   back: '/tarot/back.jpg',
   cards: {

@@ -188,33 +188,39 @@ ${baseInstructions.map(instruction => `- ${instruction}`).join('\n')}
 }
 export const getGeminiResponseCached = async (systemPrompt, userInput, history) => {
     try {
-        // キャッシュキーを生成
         const cacheKey = generateCacheKey(systemPrompt, userInput, history);
-        // キャッシュにヒットした場合はキャッシュから返す
+        
+        // キャッシュと進行中のリクエストを追跡
         if (messageCache.has(cacheKey)) {
             return { content: messageCache.get(cacheKey) };
         }
-        // 新しいレスポンスを取得
-        const aiResponse = await getGeminiResponse(systemPrompt, userInput, history);
-        // エラーチェックと型変換
-        if (aiResponse.error) {
-            return {
-                content: '',
-                error: aiResponse.error instanceof Error
-                    ? aiResponse.error
-                    : new Error(String(aiResponse.error))
-            };
+        if (pendingRequests.has(cacheKey)) {
+            return await pendingRequests.get(cacheKey);
         }
-        // レスポンスをキャッシュに保存
-        messageCache.set(cacheKey, aiResponse.content);
-        // キャッシュサイズを制限（最大100件）
-        if (messageCache.size > 100) {
-            const firstKey = messageCache.keys().next().value;
-            messageCache.delete(firstKey);
-        }
-        return { content: aiResponse.content };
-    }
-    catch (error) {
+
+        const requestPromise = (async () => {
+            try {
+                const aiResponse = await getGeminiResponse(systemPrompt, userInput, history);
+                
+                if (aiResponse?.error) {
+                    throw aiResponse.error;
+                }
+
+                if (typeof aiResponse?.content !== 'string') {
+                    throw new Error('無効なレスポンス形式');
+                }
+
+                messageCache.set(cacheKey, aiResponse.content);
+                return { content: aiResponse.content };
+            } finally {
+                pendingRequests.delete(cacheKey);
+            }
+        })();
+
+        pendingRequests.set(cacheKey, requestPromise);
+        return await requestPromise;
+
+    } catch (error) {
         console.error('Error getting Gemini response:', error);
         return {
             content: '',
