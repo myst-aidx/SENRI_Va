@@ -37,10 +37,10 @@ router.get('/db/reset', async (req: Request, res: Response) => {
     try {
         await User.deleteMany({}); // 全ユーザーを削除
 
-        // 管理者ユーザーを作成
+        // 管理者ユーザーを作成（統一：admin@senri.com / admin123）
         const admin = new User({
-            email: 'admin@fortune-telling.com',
-            password: 'Admin123!',  // パスワードは平文で設定（モデルのpre('save')ミドルウェアでハッシュ化される）
+            email: 'admin@senri.com',
+            password: 'admin123',
             name: '管理者',
             role: 'admin',
             isSubscribed: true,
@@ -53,8 +53,8 @@ router.get('/db/reset', async (req: Request, res: Response) => {
         res.json({
             message: 'Database reset successful',
             adminCredentials: {
-                email: 'admin@fortune-telling.com',
-                password: 'Admin123!'
+                email: 'admin@senri.com',
+                password: 'admin123'
             }
         });
     } catch (error) {

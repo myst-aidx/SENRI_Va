@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useCallback, useContext, useRef } from 'react';
+import React, { createContext, useEffect, useState, useCallback, useContext, useRef, ReactNode } from 'react';
 import { User, UserRole, AuthState } from '../types/user';
 import {
   loginRequest,
@@ -17,11 +17,7 @@ const ACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5分以内のアクティビティ�
 const TOKEN_KEY = 'token';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 
-export interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-  error: string | null;
+interface AuthContextType extends AuthState {
   login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
@@ -38,6 +34,8 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   loading: false,
   error: null,
+  token: null,
+  sessionWarning: false,
   login: async () => {},
   logout: async () => {},
   signup: async () => {},
@@ -51,15 +49,33 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-export interface AuthProviderProps {
-  children: React.ReactNode;
+interface AuthProviderProps {
+  children: ReactNode;
 }
+
+// デバッグユーザーの型定義
+const DEBUG_USER: User = {
+  id: 'debug_user',
+  email: 'debug@example.com',
+  role: UserRole.TEST,
+  isAdmin: false,
+  isTestUser: true,
+  name: 'Debug User',
+  createdAt: new Date().toISOString(),
+  lastLoginAt: new Date().toISOString(),
+  isPro: true,
+  isSubscribed: true,
+  subscriptionPlan: 'test'
+};
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionWarning, setSessionWarning] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  
   const { setLoading: setGlobalLoading } = useLoading();
   const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
@@ -156,16 +172,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // デバッグモードのトークンの場合
         if (token === 'debug_mode_token') {
           console.log('AuthContext - Debug mode detected');
-          const debugUser: User = {
-            id: 'debug_user',
-            email: 'debug@example.com',
-            role: UserRole.USER,
-            subscriptionPlan: 'test',
-            isSubscribed: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-          setUser(debugUser);
+          setUser(DEBUG_USER);
           setIsAuthenticated(true);
           setLoading(false);
           return;
@@ -204,16 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // デバッグモードのトークンの場合
       if (token === 'debug_mode_token') {
         console.log('AuthContext - Debug mode login');
-        const debugUser: User = {
-          id: 'debug_user',
-          email: 'debug@example.com',
-          role: UserRole.USER,
-          subscriptionPlan: 'test',
-          isSubscribed: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        setUser(debugUser);
+        setUser(DEBUG_USER);
         setIsAuthenticated(true);
         localStorage.setItem(TOKEN_KEY, token);
         setError(null);
@@ -336,6 +334,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAuthenticated,
         loading,
         error,
+        token,
+        sessionWarning,
         login,
         logout,
         signup,

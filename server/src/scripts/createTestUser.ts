@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
 import { createLogger } from '../utils/logger';
 
@@ -11,18 +11,16 @@ async function createTestUser() {
     await mongoose.connect('mongodb://localhost:27017/fortune-telling');
     logger.info('Connected to MongoDB');
 
-    // テストユーザーのパスワードをハッシュ化
+    // テストユーザーのパスワード（平文）
     const password = 'Test123456';
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
 
     // 既存のテストユーザーを削除
     await User.deleteOne({ email: 'test@example.com' });
 
-    // テストユーザーを作成
+    // テストユーザーを作成（保存時にpre-saveミドルウェアによりハッシュ化される）
     const testUser = new User({
       email: 'test@example.com',
-      password: hashedPassword,
+      password: password,
       role: 'user',
       isSubscribed: false,
       createdAt: new Date(),
@@ -31,7 +29,6 @@ async function createTestUser() {
 
     await testUser.save();
     logger.info('Test user created successfully');
-
   } catch (error) {
     logger.error('Failed to create test user:', error);
     throw error;
@@ -41,4 +38,4 @@ async function createTestUser() {
   }
 }
 
-createTestUser().catch(console.error); 
+export default createTestUser; 

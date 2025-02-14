@@ -1,142 +1,95 @@
 import { Router } from 'express';
-import { validateSignupInput, validateLoginInput, validateRefreshToken } from '../middleware/validation';
 import { AuthController } from '../controllers/AuthController';
+import { validateLoginInput, validateRegisterInput } from '../utils/validation';
+import { AppError, ErrorType } from '../types/errors';
 import { createLogger } from '../utils/logger';
-import { ErrorType } from '../types/errors';
-import { AppError, AuthError } from '../types/errors';
-import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
 
+const logger = createLogger('authRoutes');
 const router = Router();
 const authController = AuthController.getInstance();
-const logger = createLogger('AuthRoutes');
 
-// サインアップ
-router.post('/signup', validateSignupInput, async (req, res) => {
+router.post('/register', async (req, res, next) => {
   try {
+    const { email, password, name } = req.body;
+    const validationResult = validateRegisterInput({ email, password, name });
+    
+    if (!validationResult.isValid) {
+      throw new AppError({
+        statusCode: 400,
+        message: validationResult.errors.join(', '),
+        type: ErrorType.VALIDATION
+      });
+    }
+
     await authController.signup(req, res);
   } catch (error) {
-    logger.error('Signup route error:', error);
-    if (error instanceof AppError || error instanceof AuthError) {
-      res.status(error.statusCode || 400).json({
-        message: error.message,
-        type: error.type
-      });
-      return;
-    }
-    res.status(500).json({
-      message: 'サーバーエラーが発生しました。',
-      type: ErrorType.SERVER
-    });
+    logger.error('Registration error:', error);
+    next(new AppError({
+      statusCode: 500,
+      message: 'Registration failed',
+      type: ErrorType.INTERNAL
+    }));
   }
 });
 
-// ログイン
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   try {
-    console.log('Login attempt for:', req.body.email);
     const { email, password } = req.body;
-
-    // ユーザーの存在確認
-    const user = await User.findOne({ email });
-    if (!user) {
-      console.log('User not found:', email);
-      return res.status(401).json({ 
-        message: 'メールアドレスまたはパスワードが正しくありません。' 
+    const validationResult = validateLoginInput({ email, password });
+    
+    if (!validationResult.isValid) {
+      throw new AppError({
+        statusCode: 400,
+        message: validationResult.errors.join(', '),
+        type: ErrorType.VALIDATION
       });
     }
 
-    console.log('User found:', user.email);
-    console.log('Stored password hash:', user.password);
-    console.log('Provided password:', password);
-
-    // パスワードが存在することを確認
-    if (!user.password || !password) {
-      console.log('Password missing');
-      return res.status(401).json({ 
-        message: 'メールアドレスまたはパスワードが正しくありません。' 
-      });
-    }
-
-    // パスワードの検証
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password validation result:', isValidPassword);
-
-    if (!isValidPassword) {
-      console.log('Invalid password for user:', email);
-      return res.status(401).json({ 
-        message: 'メールアドレスまたはパスワードが正しくありません。' 
-      });
-    }
-
-    // JWTトークンの生成
-    const token = jwt.sign(
-      { 
-        userId: user._id, 
-        email: user.email, 
-        role: user.role 
-      },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    console.log('Login successful for:', email);
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
+    await authController.login(req, res);
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'サーバーエラーが発生しました。' });
+    logger.error('Login error:', error);
+    next(new AppError({
+      statusCode: 500,
+      message: 'Login failed',
+      type: ErrorType.INTERNAL
+    }));
   }
 });
 
-// ログアウト
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req, res, next) => {
   try {
     await authController.logout(req, res);
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    logger.error('Logout route error:', error);
-    if (error instanceof AppError) {
-      res.status(error.statusCode || 400).json({
-        message: error.message,
-        type: error.type
-      });
-      return;
-    }
-    res.status(500).json({
-      message: 'サーバーエラーが発生しました。',
-      type: ErrorType.SERVER
-    });
+    logger.error('Logout error:', error);
+    next(new AppError({
+      statusCode: 500,
+      message: 'Logout failed',
+      type: ErrorType.INTERNAL
+    }));
   }
 });
 
-// トークンのリフレッシュ
-router.post('/refresh-token', validateRefreshToken, async (req, res) => {
+router.post('/refresh-token', async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
-    const result = await authController.refreshToken(refreshToken);
-    res.status(200).json(result);
-  } catch (error) {
-    logger.error('Token refresh route error:', error);
-    if (error instanceof AppError) {
-      res.status(error.statusCode || 400).json({
-        message: error.message,
-        type: error.type
+    if (!refreshToken) {
+      throw new AppError({
+        statusCode: 400,
+        message: 'Refresh token is required',
+        type: ErrorType.VALIDATION
       });
-      return;
     }
-    res.status(500).json({
-      message: 'サーバーエラーが発生しました。',
-      type: ErrorType.SERVER
-    });
+
+    await authController.refreshToken(req, res);
+  } catch (error) {
+    logger.error('Token refresh error:', error);
+    next(new AppError({
+      statusCode: 500,
+      message: 'Token refresh failed',
+      type: ErrorType.INTERNAL
+    }));
   }
 });
 
-export default router;
+export { router as authRouter };

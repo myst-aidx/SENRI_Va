@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
 import { createLogger } from '../utils/logger';
+
 const logger = createLogger('CreateTestUser');
+
 async function createTestUser() {
     try {
         // MongoDBに接続
@@ -35,4 +37,5 @@ async function createTestUser() {
         logger.info('Disconnected from MongoDB');
     }
 }
-createTestUser().catch(console.error);
+
+export default createTestUser;

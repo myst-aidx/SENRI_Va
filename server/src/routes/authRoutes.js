@@ -72,6 +72,7 @@ router.post('/login', async (req, res) => {
         // ユーザーの存在確認
         const user = await User.findOne({ email });
         if (!user) {
+            logger.warn('ユーザーが存在しません:', email);
             return res.status(401).json({
                 message: 'メールアドレスまたはパスワードが正しくありません。',
                 type: ErrorType.AUTH
@@ -80,7 +81,10 @@ router.post('/login', async (req, res) => {
 
         // パスワードの検証
         const isValidPassword = await bcrypt.compare(password, user.password);
+        logger.info('パスワード検証結果:', isValidPassword);
+
         if (!isValidPassword) {
+            logger.warn('パスワードが一致しません:', email);
             return res.status(401).json({
                 message: 'メールアドレスまたはパスワードが正しくありません。',
                 type: ErrorType.AUTH
@@ -89,7 +93,11 @@ router.post('/login', async (req, res) => {
 
         // JWTトークンの生成
         const token = jwt.sign(
-            { userId: user._id },
+            { 
+                userId: user._id, 
+                email: user.email, 
+                role: user.role 
+            },
             process.env.JWT_SECRET || 'your-secret-key',
             { expiresIn: '24h' }
         );
@@ -99,16 +107,13 @@ router.post('/login', async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email,
-                name: user.name
+                role: user.role
             }
         });
     }
     catch (error) {
-        logger.error('Login error:', error);
-        res.status(500).json({
-            message: 'サーバーエラーが発生しました。',
-            type: ErrorType.SERVER
-        });
+        logger.error('ログインエラー:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました。' });
     }
 });
 

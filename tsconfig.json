@@ -1,47 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": false,
-    "allowJs": true,
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "esModuleInterop": true,
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": false,
-    "noEmit": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "jsx": "react-jsx",
-    "allowImportingTsExtensions": true,
-    "checkJs": false,
-    "strictPropertyInitialization": false,
-    "strictFunctionTypes": false,
-    "strictBindCallApply": false,
-    "noImplicitThis": false,
-    "alwaysStrict": false,
-
-    /* Path Aliases */
-    "baseUrl": ".",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["jest", "node"],
     "paths": {
-      "@/*": ["src/*"]
+      "*": ["./node_modules/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "**/*.cy.ts",
-    "**/*.cy.tsx",
-    "cypress",
-    "**/*.spec.ts",
-    "**/*.test.ts",
-    "**/*.spec.tsx",
-    "**/*.test.tsx"
-  ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src", "server/src"],
+  "references": [{ "path": "./tsconfig.node.json" }],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
 }

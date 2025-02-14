@@ -133,7 +133,7 @@ export const generateRoomFengshuiInterpretation = async (data: FengshuiRoomData)
   try {
     const prompt = generateRoomPrompt(data);
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -159,7 +159,7 @@ export const generateFloorPlanFengshuiInterpretation = async (data: FengshuiFloo
   try {
     const prompt = generateFloorPlanPrompt(data);
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",

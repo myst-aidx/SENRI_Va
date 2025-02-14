@@ -7,9 +7,10 @@ import { ErrorType } from '../types/errors';
 import { ErrorMessages } from '../constants/errorMessages';
 import { AppError, ValidationError, AuthError } from '../types/errors';
 import { generateToken, generateRefreshToken } from '../utils/auth';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { createLogger } from '../utils/logger';
 import { getErrorMessage } from '../constants/errorMessages';
+import { IUser } from '../models/User';
 
 const logger = createLogger('AuthController');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -132,14 +133,14 @@ export class AuthController {
       }
 
       // ユーザーの検索
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email }).select('+password') as IUser;
       if (!user) {
         logger.warn('Invalid login attempt - user not found:', email);
         throw new AuthError(getErrorMessage(ErrorType.AUTHENTICATION));
       }
 
       // パスワードの検証
-      const validPassword = await bcrypt.compare(password, user.password);
+      const validPassword = await user.comparePassword(password);
       if (!validPassword) {
         logger.warn('Invalid login attempt - wrong password:', email);
         throw new AuthError(getErrorMessage(ErrorType.AUTHENTICATION));
@@ -164,7 +165,8 @@ export class AuthController {
         user: {
           id: user._id,
           email: user.email,
-          role: user.role
+          role: user.role,
+          isAdmin: user.isAdmin
         },
         token,
         refreshToken
@@ -234,7 +236,7 @@ export class AuthController {
         throw new AuthError(getErrorMessage(ErrorType.AUTHENTICATION));
       }
 
-      const user = await User.findById(userId);
+      const user = await User.findById(userId) as IUser;
       if (!user) {
         throw new AuthError(getErrorMessage(ErrorType.AUTHENTICATION));
       }

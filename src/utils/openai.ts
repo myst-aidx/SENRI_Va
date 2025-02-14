@@ -29,7 +29,7 @@ const getOpenAIResponse = async (
 ) => {
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // またはその他の適切なモデル
+      model: 'gpt-4o',
       messages: conversationHistory.map(msg =>
         msg.role === 'model'
           ? { role: 'assistant' as const, content: msg.content, name: 'assistant' as const }
@@ -130,7 +130,7 @@ export async function generateResponse(
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -209,7 +209,7 @@ export async function generateNextQuestions(
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",

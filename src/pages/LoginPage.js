@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { loginRequest } from '../auth/AuthService';
+
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -13,12 +14,10 @@ export default function LoginPage() {
     const prevAuthRef = useRef(isAuthenticated);
     // 認証状態の監視と自動リダイレクト
     useEffect(() => {
-        // 認証状態が false から true に変更された場合のみリダイレクト
         if (!prevAuthRef.current && isAuthenticated) {
-            console.log('Auth state changed from false to true, redirecting to /fortune');
+            console.log('認証状態がfalseからtrueに変化したので /fortune にリダイレクトします');
             navigate('/fortune', { replace: true });
         }
-        // 現在の認証状態を保存
         prevAuthRef.current = isAuthenticated;
     }, [isAuthenticated, navigate]);
     // 通常のログイン処理

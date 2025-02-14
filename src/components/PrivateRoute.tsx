@@ -9,17 +9,31 @@ interface ProtectedRouteProps {
   requiredRole?: UserRole;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  // 認証チェックを一時的に無効化
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+  const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <LoadingSpinner message="認証状態を確認しています..." />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
   return <>{children}</>;
 };
 
-export const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+export const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="認証状態を確認しています..." />;
   }
 
   if (!isAuthenticated) {

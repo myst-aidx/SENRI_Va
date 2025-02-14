@@ -8,8 +8,9 @@ const logger = createLogger('GeminiAPI');
 const API_KEY = process.env.GEMINI_API_KEY || 'your_gemini_api_key';
 
 const genAI = new GoogleGenerativeAI(API_KEY);
+// 最新モデルに更新
 const model = genAI.getGenerativeModel({ 
-    model: 'gemini-pro',
+    model: "gemini-2.0-flash-thinking-exp-01-21",
     safetySettings: [
         {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -85,9 +86,9 @@ export async function generateGeminiVisionResponse(
       throw new Error('Gemini APIキーが設定されていません');
     }
 
-    // Gemini APIクライアントの初期化
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
-
+    // 最新のモデルを使用して更新
+    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
+    
     // 画像データの取得
     const imageResponse = await fetch(imageUrl);
     const imageData = await imageResponse.arrayBuffer();
@@ -96,7 +97,7 @@ export async function generateGeminiVisionResponse(
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
     // プロンプトと画像データの準備
-    const result = await model.generateContent([
+    const result = await visionModel.generateContent([
       prompt,
       {
         inlineData: {
@@ -124,9 +125,9 @@ export async function generateResponse(
   history: Message[]
 ): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const responseModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-exp-01-21" });
 
-    const chat = model.startChat({
+    const chat = responseModel.startChat({
       history: history.map(msg => ({
         role: msg.role,
         parts: [{ text: msg.content }]

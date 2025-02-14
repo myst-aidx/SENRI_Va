@@ -15,7 +15,11 @@ export const generateToken = (payload: TokenPayload): string => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
   } catch (error) {
     logger.error('Token generation error:', error);
-    throw new Error('Failed to generate token');
+    throw new AppError({
+      statusCode: 500,
+      message: 'Failed to generate token',
+      type: ErrorType.INTERNAL
+    });
   }
 };
 
@@ -24,7 +28,11 @@ export const generateRefreshToken = (userId: string): string => {
     return jwt.sign({ userId }, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
   } catch (error) {
     logger.error('Refresh token generation error:', error);
-    throw new Error('Failed to generate refresh token');
+    throw new AppError({
+      statusCode: 500,
+      message: 'Failed to generate refresh token',
+      type: ErrorType.INTERNAL
+    });
   }
 };
 
@@ -35,13 +43,13 @@ export const verifyToken = (token: string): TokenPayload => {
     if (error instanceof jwt.TokenExpiredError) {
       throw new AppError({
         statusCode: 401,
-        message: ErrorMessages.TOKEN_EXPIRED,
+        message: 'Token has expired',
         type: ErrorType.TOKEN_EXPIRED
       });
     }
     throw new AppError({
       statusCode: 401,
-      message: ErrorMessages.TOKEN_INVALID,
+      message: 'Invalid token',
       type: ErrorType.INVALID_TOKEN
     });
   }
@@ -53,7 +61,7 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   } catch (error) {
     throw new AppError({
       statusCode: 401,
-      message: ErrorMessages.TOKEN_INVALID,
+      message: 'Invalid refresh token',
       type: ErrorType.INVALID_TOKEN
     });
   }
@@ -76,7 +84,7 @@ export const decodeToken = (token: string): TokenPayload => {
   } catch (error) {
     throw new AppError({
       statusCode: 401,
-      message: ErrorMessages.TOKEN_INVALID,
+      message: 'Invalid token format',
       type: ErrorType.INVALID_TOKEN
     });
   }

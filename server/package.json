@@ -4,13 +4,10 @@
     "description": "Backend for fortune telling app (authentication + subscription)",
     "main": "index.js",
     "scripts": {
-        "start": "tsc && node dist/index.js",
-        "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-        "build": "tsc",
-        "test": "jest --detectOpenHandles --forceExit",
-        "test:watch": "jest --watch",
-        "test:coverage": "jest --coverage",
-        "lint": "eslint . --ext .ts"
+        "test": "jest --config jest.config.cjs",
+        "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+        "frontend": "vite",
+        "backend": "ts-node server/app.ts"
     },
     "dependencies": {
         "@types/bcryptjs": "^2.4.6",

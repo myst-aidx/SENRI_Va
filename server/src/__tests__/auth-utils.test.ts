@@ -1,4 +1,4 @@
-import { describe, test, expect } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import { generateToken, verifyToken, hashPassword, comparePassword } from '../utils/auth';
 import { ErrorMessages } from '../constants/errorMessages';
 import { TokenPayload } from '../types/auth';
@@ -12,26 +12,38 @@ describe('Auth Utils', () => {
     isSubscribed: false
   };
 
-  test('generateToken should create a valid JWT token', () => {
+  it('should generate and verify a token', async () => {
     const token = generateToken(mockPayload);
     expect(token).toBeDefined();
     expect(typeof token).toBe('string');
+
+    const decoded = await verifyToken(token);
+    expect(decoded).toHaveProperty('userId', mockPayload.userId);
+    expect(decoded).toHaveProperty('email', mockPayload.email);
+    expect(decoded).toHaveProperty('role', mockPayload.role);
   });
 
-  test('verifyToken should correctly decode a valid token', () => {
+  it('should handle expired tokens', async () => {
+    // Note: This test might be flaky due to timing
+    // Better to mock jwt.verify for consistent results
     const token = generateToken(mockPayload);
-    const decoded = verifyToken(token);
-    expect(decoded).toMatchObject(mockPayload);
-  });
+    await new Promise(resolve => setTimeout(resolve, 3600000)); // Wait for 1 hour
 
-  test('verifyToken should throw error for invalid token', () => {
-    expect(() => verifyToken('invalid-token')).toThrow();
-  });
+    try {
+      await verifyToken(token);
+      fail('Expected token verification to fail');
+    } catch (error: any) {
+      expect(error.type).toBe(ErrorType.TOKEN_EXPIRED);
+    }
+  }, 4000000); // 4000秒のタイムアウトを設定
 
-  test('verifyToken should throw error for expired token', async () => {
-    const token = generateToken(mockPayload, '1ms');
-    await new Promise(resolve => setTimeout(resolve, 2));
-    expect(() => verifyToken(token)).toThrow();
+  it('should handle invalid tokens', async () => {
+    try {
+      await verifyToken('invalid.token.here');
+      fail('Expected token verification to fail');
+    } catch (error: any) {
+      expect(error.type).toBe(ErrorType.INVALID_TOKEN);
+    }
   });
 
   describe('パスワード管理', () => {

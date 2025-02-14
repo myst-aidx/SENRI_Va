@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, Content, Part } from '@google/generative-ai';
 import { AIResponse, FortuneType } from '../../types';
 import { FortuneError } from '../../types';
 import { ChatMessage } from '../../types/chat';
@@ -17,9 +17,82 @@ function validateEnvironmentVariables() {
 
 // 定数の定義
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const MODEL = import.meta.env.VITE_AI_MODEL || 'gemini-pro';
+const MODEL = "gemini-2.0-flash-exp";
 const TEMPERATURE = Number(import.meta.env.VITE_AI_TEMPERATURE) || 0.7;
 const MAX_TOKENS = Number(import.meta.env.VITE_AI_MAX_TOKENS) || 1000;
+
+// 姓名判断用のJSONスキーマ
+const seimeiSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    analysis: {
+      type: SchemaType.OBJECT,
+      properties: {
+        basic: {
+          type: SchemaType.OBJECT,
+          properties: {
+            fiveGrids: {
+              type: SchemaType.OBJECT,
+              properties: {
+                heaven: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    value: { type: SchemaType.NUMBER },
+                    meaning: { type: SchemaType.STRING },
+                    element: { type: SchemaType.STRING }
+                  }
+                },
+                person: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    value: { type: SchemaType.NUMBER },
+                    meaning: { type: SchemaType.STRING },
+                    element: { type: SchemaType.STRING }
+                  }
+                },
+                earth: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    value: { type: SchemaType.NUMBER },
+                    meaning: { type: SchemaType.STRING },
+                    element: { type: SchemaType.STRING }
+                  }
+                }
+              }
+            },
+            soundVibration: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.NUMBER }
+            }
+          }
+        },
+        annualForecast: {
+          type: SchemaType.OBJECT,
+          properties: {
+            "2024": { type: SchemaType.STRING }
+          }
+        }
+      }
+    },
+    compatibility: {
+      type: SchemaType.OBJECT,
+      properties: {
+        career: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING }
+        }
+      }
+    },
+    luckyItems: {
+      type: SchemaType.OBJECT,
+      properties: {
+        color: { type: SchemaType.STRING },
+        number: { type: SchemaType.NUMBER },
+        direction: { type: SchemaType.STRING }
+      }
+    }
+  }
+};
 
 interface FortunePromptConfig {
   type: FortuneType;
@@ -68,102 +141,60 @@ const generateCacheKey = (systemPrompt: string, userInput: string, history: any[
   return `${systemPrompt}:${userInput}:${JSON.stringify(history)}`;
 };
 
+// Gemini API の生成モデルを取得するための関数
+function getGenerativeModel() {
+  const genAI = new GoogleGenerativeAI(API_KEY);
+  return genAI.getGenerativeModel({ model: MODEL });
+}
+
 /**
  * Gemini APIを使用してAIレスポンスを生成する
  */
 export async function getGeminiResponse(
   systemPrompt: string,
   userPrompt: string,
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []
+  history: ChatMessage[] = []
 ): Promise<AIResponse> {
   try {
     const apiKey = validateEnvironmentVariables();
-    
-    if (!systemPrompt || !userPrompt) {
-      throw new FortuneError(
-        'システムプロンプトとユーザープロンプトは必須です。',
-        'VALIDATION_ERROR'
-      );
-    }
+    const genAI = new GoogleGenerativeAI(apiKey);
 
-    // APIリクエストの準備
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          }
-        ]
-      })
+    const model = genAI.getGenerativeModel({
+      model: MODEL,
+      generationConfig: {
+        temperature: TEMPERATURE,
+        maxOutputTokens: MAX_TOKENS,
+        responseMimeType: "application/json",
+        responseSchema: seimeiSchema
+      }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new FortuneError(
-        `Gemini APIエラー: ${errorData.error?.message || '不明なエラー'}`,
-        'API_ERROR'
-      );
-    }
+    const chat = model.startChat({
+      history: history.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }] as Part[]
+      })) as Content[],
+      generationConfig: {
+        temperature: TEMPERATURE,
+        maxOutputTokens: MAX_TOKENS
+      }
+    });
 
-    const data = await response.json();
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new FortuneError(
-        'AIからの応答が不正な形式です。',
-        'RESPONSE_FORMAT_ERROR'
-      );
-    }
+    const result = await chat.sendMessage(
+      `${systemPrompt}\n\n${userPrompt}`
+    );
+    const response = await result.response;
+    const text = response.text();
 
     return {
-      content: data.candidates[0].content.parts[0].text,
-      error: null
+      content: text
     };
-
   } catch (error) {
-    console.error('Gemini API error:', error);
-    
-    if (error instanceof FortuneError) {
-      return {
-        content: '',
-        error: error
-      };
-    }
-
-    return {
-      content: '',
-      error: new FortuneError(
-        error instanceof Error ? error.message : 'AIレスポンスの生成中に予期せぬエラーが発生しました。',
-        'UNEXPECTED_ERROR'
-      )
-    };
+    console.error('Gemini API Error:', error);
+    throw new FortuneError(
+      'AI応答の生成に失敗しました',
+      'AI_ERROR'
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 export enum UserRole {
+  ADMIN = 'admin',
   USER = 'user',
-  ADMIN = 'admin'
+  TEST = 'test'
 }
 
 export type ReadingDepth = 'basic' | 'advanced' | 'expert';
@@ -13,15 +14,16 @@ export interface ReadingPreference {
 }
 
 export interface User {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  isAdmin: boolean;
+  isTestUser: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
   isPro: boolean;  // プレミアムプラン加入状態
   proExpiresAt?: Date;  // プレミアムプランの有効期限
-  role: UserRole;
-  createdAt: Date;
-  updatedAt: Date;
   isSubscribed?: boolean;
   personalInfo?: {
     birthDate: string;
@@ -29,7 +31,6 @@ export interface User {
     birthPlace?: string;
     gender?: string;
   };
-  name?: string;
   subscriptionPlan?: 'basic' | 'premium' | 'test';
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
@@ -76,7 +77,19 @@ export interface User {
       };
     };
   };
-  lastLoginDate?: string;
+}
+
+export interface UserProfile extends User {
+  fortuneTypes: string[];
+  experience: string;
+  bio?: string;
+  avatar?: string;
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    facebook?: string;
+    website?: string;
+  };
 }
 
 export interface AuthState {

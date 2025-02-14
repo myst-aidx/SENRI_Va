@@ -8,7 +8,7 @@ interface LoadingSpinnerProps {
   className?: string;
 }
 
-export default function LoadingSpinner({ message = 'タロットカードからのメッセージを受け取っています...', size = 24, className = '' }: LoadingSpinnerProps) {
+export default function LoadingSpinner({ message = '鑑定中...', size = 24, className = '' }: LoadingSpinnerProps) {
   return (
     <AnimatePresence>
       <motion.div

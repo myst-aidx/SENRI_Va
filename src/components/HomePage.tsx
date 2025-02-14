@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import TestUserAuthModal from './TestUserAuthModal';
 import { useAuth } from '../auth/AuthContext';
@@ -260,6 +260,21 @@ export default function HomePage() {
                 </button>
               </motion.div>
             </div>
+          </div>
+
+          <div className="flex justify-center space-x-4 mt-8">
+            <Link
+              to="/fortune"
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors"
+            >
+              占いを始める
+            </Link>
+            <Link
+              to="/join"
+              className="px-6 py-3 bg-purple-500/30 text-purple-200 border border-purple-500/50 rounded-lg hover:bg-purple-500/40 transition-colors"
+            >
+              テストユーザーに応募
+            </Link>
           </div>
         </div>
 

@@ -424,6 +424,10 @@ export default function TarotReader({ onFeedback }: TarotReaderProps) {
     </motion.div>
   );
 
+  if (isLoading) {
+    return <LoadingSpinner message="タロットカードからのメッセージを受け取っています..." />;
+  }
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900 p-8">
       {/* ローディング画面 */}

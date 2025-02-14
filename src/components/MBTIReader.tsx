@@ -426,7 +426,7 @@ export default function MBTIReader() {
   }, [currentStep, calculateMBTI]);
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="MBTI性格診断を分析しています..." />;
   }
 
   if (error) {

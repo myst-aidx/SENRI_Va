@@ -92,8 +92,11 @@ export class SessionManager {
       logger.info('Session created:', { userId, token: token.substring(0, 10) + '...' });
     } catch (error) {
       logger.error('Error creating session:', error);
-      const payload = await verifyToken(token);
-      this.fallbackStorage.set(token, payload);
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to create session',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -119,7 +122,11 @@ export class SessionManager {
       return userId;
     } catch (error) {
       logger.error('Error validating session:', error);
-      return null;
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to validate session',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -147,7 +154,11 @@ export class SessionManager {
       logger.info('All sessions removed for user:', { userId });
     } catch (error) {
       logger.error('Error removing sessions:', error);
-      throw error;
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to remove sessions',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -176,7 +187,11 @@ export class SessionManager {
       logger.info('Session updated:', { userId, token: newToken.substring(0, 10) + '...' });
     } catch (error) {
       logger.error('Error updating session:', error);
-      throw error;
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to update session',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -199,7 +214,11 @@ export class SessionManager {
       logger.info('Redis connection closed');
     } catch (error) {
       logger.error('Error closing Redis connection:', error);
-      throw error;
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to close Redis connection',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -209,16 +228,25 @@ export class SessionManager {
       return;
     }
 
-    const sessionKey = this.getSessionKey(token);
-    const redisClient = this.redis;
-    const userId = await redisClient.get(sessionKey);
+    try {
+      const sessionKey = this.getSessionKey(token);
+      const redisClient = this.redis;
+      const userId = await redisClient.get(sessionKey);
 
-    if (userId) {
-      const userSessionsKey = this.getUserSessionKey(userId);
-      await Promise.all([
-        redisClient.del(sessionKey),
-        redisClient.srem(userSessionsKey, token)
-      ]);
+      if (userId) {
+        const userSessionsKey = this.getUserSessionKey(userId);
+        await Promise.all([
+          redisClient.del(sessionKey),
+          redisClient.srem(userSessionsKey, token)
+        ]);
+      }
+    } catch (error) {
+      logger.error('Error invalidating session:', error);
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to invalidate session',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -228,16 +256,25 @@ export class SessionManager {
       return;
     }
 
-    const userSessionsKey = this.getUserSessionKey(userId);
-    const redisClient = this.redis;
-    const tokens: string[] = await redisClient.smembers(userSessionsKey);
+    try {
+      const userSessionsKey = this.getUserSessionKey(userId);
+      const redisClient = this.redis;
+      const tokens: string[] = await redisClient.smembers(userSessionsKey);
 
-    if (tokens.length > 0) {
-      const sessionKeys: string[] = tokens.map((token: string) => this.getSessionKey(token));
-      await Promise.all([
-        redisClient.del(userSessionsKey),
-        ...sessionKeys.map((key: string) => redisClient.del(key))
-      ]);
+      if (tokens.length > 0) {
+        const sessionKeys: string[] = tokens.map((token: string) => this.getSessionKey(token));
+        await Promise.all([
+          redisClient.del(userSessionsKey),
+          ...sessionKeys.map((key: string) => redisClient.del(key))
+        ]);
+      }
+    } catch (error) {
+      logger.error('Error invalidating user sessions:', error);
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to invalidate user sessions',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
@@ -253,83 +290,93 @@ export class SessionManager {
     }
 
     try {
-      const redisClient = this.redis;
-      const keys = await redisClient.keys(`${this.sessionPrefix}*`);
+      const keys = await this.redis.keys(`${this.sessionPrefix}*`);
       if (keys.length > 0) {
-        await redisClient.del(...keys);
+        await this.redis.del(...keys);
       }
-      const userKeys = await redisClient.keys(`${this.userSessionPrefix}*`);
+
+      const userKeys = await this.redis.keys(`${this.userSessionPrefix}*`);
       if (userKeys.length > 0) {
-        await redisClient.del(...userKeys);
+        await this.redis.del(...userKeys);
       }
+
+      logger.info('All sessions cleared');
     } catch (error) {
-      logger.error('Failed to clear all sessions:', error);
+      logger.error('Error clearing all sessions:', error);
+      throw new AppError({
+        statusCode: 500,
+        message: 'Failed to clear all sessions',
+        type: ErrorType.INTERNAL
+      });
     }
   }
 
   async disconnect(): Promise<void> {
-    if (!this.redis) {
-      logger.error('Redis client is not initialized');
-      return;
-    }
-
-    try {
-      const redisClient = this.redis;
-      await redisClient.disconnect();
-    } catch (error) {
-      logger.error('Failed to disconnect from Redis:', error);
+    if (this.redis) {
+      try {
+        await this.redis.quit();
+        this.redis = null;
+        logger.info('Redis connection closed');
+      } catch (error) {
+        logger.error('Error disconnecting from Redis:', error);
+        throw new AppError({
+          statusCode: 500,
+          message: 'Failed to disconnect from Redis',
+          type: ErrorType.INTERNAL
+        });
+      }
     }
   }
 
   public async setSession(key: string, value: string): Promise<void> {
+    if (this.useInMemory) {
+      this.inMemoryStore.set(key, value);
+      return;
+    }
+
     try {
-      if (this.useInMemory) {
-        this.inMemoryStore.set(key, value);
-        setTimeout(() => this.inMemoryStore.delete(key), this.sessionExpiry * 1000);
-      } else if (this.redis) {
-        await this.redis.set(key, value, 'EX', this.sessionExpiry);
-      }
+      await this.redis?.setex(key, this.sessionExpiry, value);
     } catch (error) {
-      console.error('Session storage error:', error);
+      logger.error('Error setting session:', error);
       throw new AppError({
-        message: 'セッションの保存に失敗しました',
-        type: ErrorType.SERVER,
-        statusCode: 500
+        statusCode: 500,
+        message: 'Failed to set session',
+        type: ErrorType.INTERNAL
       });
     }
   }
 
   public async getSession(key: string): Promise<string | null> {
+    if (this.useInMemory) {
+      return this.inMemoryStore.get(key) || null;
+    }
+
     try {
-      if (this.useInMemory) {
-        return this.inMemoryStore.get(key) || null;
-      } else if (this.redis) {
-        return await this.redis.get(key);
-      }
-      return null;
+      return await this.redis?.get(key) || null;
     } catch (error) {
-      console.error('Session retrieval error:', error);
+      logger.error('Error getting session:', error);
       throw new AppError({
-        message: 'セッションの取得に失敗しました',
-        type: ErrorType.SERVER,
-        statusCode: 500
+        statusCode: 500,
+        message: 'Failed to get session',
+        type: ErrorType.INTERNAL
       });
     }
   }
 
   public async deleteSession(key: string): Promise<void> {
+    if (this.useInMemory) {
+      this.inMemoryStore.delete(key);
+      return;
+    }
+
     try {
-      if (this.useInMemory) {
-        this.inMemoryStore.delete(key);
-      } else if (this.redis) {
-        await this.redis.del(key);
-      }
+      await this.redis?.del(key);
     } catch (error) {
-      console.error('Session deletion error:', error);
+      logger.error('Error deleting session:', error);
       throw new AppError({
-        message: 'セッションの削除に失敗しました',
-        type: ErrorType.SERVER,
-        statusCode: 500
+        statusCode: 500,
+        message: 'Failed to delete session',
+        type: ErrorType.INTERNAL
       });
     }
   }

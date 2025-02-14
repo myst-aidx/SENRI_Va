@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { PrivateRoute, ProtectedRoute } from './components/PrivateRoute';
 import SixStarsReader from './components/SixStarsReader';
 import TarotReader from './components/TarotReader';
 import TarotResult from './components/TarotResult';
@@ -53,6 +54,13 @@ import SeimeiResult from './components/SeimeiResult';
 import SubscriptionPage from './pages/SubscriptionPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import { Settings, ChevronDown, Star, Menu, LogOut } from 'react-feather';
+import LandingPage from './pages/LandingPage';
+import SurveyPage from './pages/SurveyPage';
+import SurveyCompletePage from './pages/SurveyCompletePage';
+import AdminLayout from './components/layouts/AdminLayout';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminSettingsPage from './pages/AdminSettingsPage';
 
 function App() {
   return (
@@ -163,6 +171,12 @@ function AppContent() {
               {!isAuthenticated ? (
                 <>
                   <button 
+                    onClick={() => handleNavigate('/join')}
+                    className="text-sm bg-purple-500/30 text-purple-200 border border-purple-500/50 px-3 py-1.5 rounded-lg hover:bg-purple-500/40 transition-colors"
+                  >
+                    テストユーザー募集中
+                  </button>
+                  <button 
                     onClick={() => handleNavigate('/signup')}
                     className="text-sm bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors"
                   >
@@ -192,11 +206,14 @@ function AppContent() {
       <Routes>
         {/* パブリックルート */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/join" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/reset-password" element={<PasswordReset />} />
         <Route path="/subscription" element={<SubscriptionPage />} />
         <Route path="/coming-soon" element={<ComingSoonPage />} />
+        <Route path="/survey" element={<SurveyPage />} />
+        <Route path="/survey/complete" element={<SurveyCompletePage />} />
         
         {/* 占いルート */}
         <Route path="/fortune" element={<FortunePage />} />
@@ -242,6 +259,11 @@ function AppContent() {
         <Route path="/settings/account" element={<AccountSettings />} />
         <Route path="/settings/notifications" element={<NotificationSettings />} />
         <Route path="/settings/integrations" element={<IntegrationSettings />} />
+
+        {/* 管理者用ルートを追加 */}
+        <Route path="/admin" element={<PrivateRoute><AdminLayout><AdminDashboardPage /></AdminLayout></PrivateRoute>} />
+        <Route path="/admin/users" element={<PrivateRoute><AdminLayout><AdminUsersPage /></AdminLayout></PrivateRoute>} />
+        <Route path="/admin/settings" element={<PrivateRoute><AdminLayout><AdminSettingsPage /></AdminLayout></PrivateRoute>} />
 
         {/* 404ページ */}
         <Route path="*" element={<Navigate to="/" replace />} />

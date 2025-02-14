@@ -59,7 +59,7 @@ export const generateAIInterpretation = async (data: FourPillarsData) => {
   try {
     const prompt = generateFourPillarsPrompt(data);
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",

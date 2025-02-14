@@ -1,111 +1,164 @@
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { connectToDatabase, disconnectFromDatabase, cleanupTestDB } from '../db';
 import { User } from '../models/User';
 import { AppError, ErrorType } from '../types/errors';
 
 describe('User Model', () => {
-  const mockUser = {
-    email: 'test@example.com',
-    password: 'Password123',
-    role: 'user',
-    isSubscribed: false
-  };
+  beforeAll(async () => {
+    await connectToDatabase();
+  });
+
+  afterAll(async () => {
+    await disconnectFromDatabase();
+  });
 
   beforeEach(async () => {
-    await User.deleteMany({});
+    await cleanupTestDB();
   });
 
-  test('should create a new user successfully', async () => {
-    const user = new User(mockUser);
-    const savedUser = await user.save();
-    
-    expect(savedUser._id).toBeDefined();
-    expect(savedUser.email).toBe(mockUser.email);
-    expect(savedUser.role).toBe(mockUser.role);
-    expect(savedUser.isSubscribed).toBe(mockUser.isSubscribed);
-    expect(savedUser.password).not.toBe(mockUser.password); // パスワードがハッシュ化されていることを確認
-  });
-
-  test('should fail to create user with invalid email', async () => {
-    const invalidUser = { ...mockUser, email: 'invalid-email' };
-    const user = new User(invalidUser);
-
-    try {
-      await user.save();
-      fail('Should have thrown validation error');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        expect(error.name).toBe('ValidationError');
-      }
-    }
-  });
-
-  test('should fail to create user with short password', async () => {
-    const invalidUser = { ...mockUser, password: 'short' };
-    const user = new User(invalidUser);
-
-    try {
-      await user.save();
-      fail('Should have thrown validation error');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        expect(error.name).toBe('ValidationError');
-      }
-    }
-  });
-
-  test('should not allow duplicate emails', async () => {
-    const user1 = new User(mockUser);
-    await user1.save();
-
-    const user2 = new User(mockUser);
-    try {
-      await user2.save();
-      fail('Should have thrown duplicate key error');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        expect(error.name).toBe('MongoServerError');
-        expect((error as any).code).toBe(11000);
-      }
-    }
-  });
-
-  test('should update user successfully', async () => {
-    const user = new User(mockUser);
-    const savedUser = await user.save();
-
-    const updatedData = {
-      email: 'updated@example.com',
-      isSubscribed: true
+  it('should create a new user successfully', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'Password123!',
+      name: 'Test User'
     };
 
+    const user = await User.create(userData);
+    expect(user).toBeDefined();
+    expect(user.email).toBe(userData.email);
+    expect(user.name).toBe(userData.name);
+    expect(user.password).not.toBe(userData.password); // パスワードがハッシュ化されていることを確認
+  });
+
+  it('should fail to create user with invalid email', async () => {
+    const userData = {
+      email: 'invalid-email',
+      password: 'Password123!',
+      name: 'Test User'
+    };
+
+    try {
+      await User.create(userData);
+      fail('Expected validation error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.VALIDATION);
+    }
+  });
+
+  it('should fail to create user with short password', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'short',
+      name: 'Test User'
+    };
+
+    try {
+      await User.create(userData);
+      fail('Expected validation error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.VALIDATION);
+    }
+  });
+
+  it('should not allow duplicate emails', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'Password123!',
+      name: 'Test User'
+    };
+
+    await User.create(userData);
+
+    try {
+      await User.create(userData);
+      fail('Expected duplicate error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.DUPLICATE);
+    }
+  });
+
+  it('should update user successfully', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'Password123!',
+      name: 'Test User'
+    };
+
+    const user = await User.create(userData);
+    const updatedName = 'Updated User';
+    
     const updatedUser = await User.findByIdAndUpdate(
-      savedUser._id,
-      updatedData,
+      user._id,
+      { name: updatedName },
       { new: true }
     );
 
     expect(updatedUser).toBeDefined();
-    expect(updatedUser?.email).toBe(updatedData.email);
-    expect(updatedUser?.isSubscribed).toBe(updatedData.isSubscribed);
+    expect(updatedUser?.name).toBe(updatedName);
   });
 
-  test('should delete user successfully', async () => {
-    const user = new User(mockUser);
-    const savedUser = await user.save();
+  it('should delete user successfully', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'Password123!',
+      name: 'Test User'
+    };
 
-    await User.findByIdAndDelete(savedUser._id);
-    const deletedUser = await User.findById(savedUser._id);
-
+    const user = await User.create(userData);
+    await User.findByIdAndDelete(user._id);
+    
+    const deletedUser = await User.findById(user._id);
     expect(deletedUser).toBeNull();
   });
 
-  test('should handle non-existent user', async () => {
+  it('should handle non-existent user', async () => {
+    const nonExistentId = '507f1f77bcf86cd799439011';
+    
     try {
-      await User.findById('nonexistentid');
-    } catch (error: unknown) {
-      if (error instanceof AppError) {
-        expect(error.type).toBe(ErrorType.NOT_FOUND_ERROR);
-      }
+      await User.findByIdAndUpdate(
+        nonExistentId,
+        { name: 'Updated Name' },
+        { new: true }
+      );
+      fail('Expected not found error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.NOT_FOUND);
+    }
+  });
+
+  it('should validate password format', async () => {
+    const userData = {
+      email: 'test@example.com',
+      password: 'weak',
+      name: 'Test User'
+    };
+
+    try {
+      await User.create(userData);
+      fail('Expected validation error for weak password');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.VALIDATION);
+    }
+  });
+
+  it('should validate email format', async () => {
+    const userData = {
+      email: 'invalid.email',
+      password: 'Password123!',
+      name: 'Test User'
+    };
+
+    try {
+      await User.create(userData);
+      fail('Expected validation error for invalid email');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).type).toBe(ErrorType.VALIDATION);
     }
   });
 }); 

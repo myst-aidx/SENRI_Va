@@ -169,10 +169,10 @@ export default function SeimeiReader() {
                     className="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
                     {isLoading ? (
-                      <>
-                        <LoadingSpinner size={20} />
-                        <span>鑑定中...</span>
-                      </>
+                      <div className="flex items-center">
+                        <LoadingSpinner size={20} message="姓名判断で運命を読み解いています..." />
+                        <span className="ml-2">鑑定中...</span>
+                      </div>
                     ) : (
                       <>
                         <Star className="w-5 h-5" />

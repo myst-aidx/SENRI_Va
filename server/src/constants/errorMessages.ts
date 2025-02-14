@@ -1,56 +1,38 @@
 import { ErrorType } from '../types/errors';
 
-interface ErrorMessageType {
-    ja: string;
-    en: string;
-}
+export const ErrorMessages = {
+  VALIDATION_ERROR: 'バリデーションエラーが発生しました',
+  UNAUTHORIZED: '認証が必要です',
+  FORBIDDEN: 'アクセスが拒否されました',
+  NOT_FOUND: 'リソースが見つかりません',
+  DATABASE_ERROR: 'データベースエラーが発生しました',
+  INTERNAL_ERROR: '内部サーバーエラーが発生しました',
+  TOKEN_EXPIRED: 'トークンの有効期限が切れています',
+  TOKEN_INVALID: '無効なトークンです',
+  DUPLICATE_EMAIL: 'このメールアドレスは既に使用されています',
+  NETWORK_ERROR: 'ネットワークエラーが発生しました',
+  UNKNOWN_ERROR: '不明なエラーが発生しました',
+  SERVER_ERROR: 'サーバーエラーが発生しました'
+} as const;
 
-interface ErrorMessagesType {
-    [key: string]: ErrorMessageType;
-}
+export type ErrorMessagesType = typeof ErrorMessages;
+export type ErrorMessageType = ErrorMessagesType[keyof ErrorMessagesType];
 
-const ErrorMessages: ErrorMessagesType = {
-    [ErrorType.VALIDATION]: {
-        ja: "入力内容が正しくありません。",
-        en: "Invalid input."
-    },
-    [ErrorType.AUTHENTICATION]: {
-        ja: "認証に失敗しました。",
-        en: "Authentication failed."
-    },
-    [ErrorType.AUTHORIZATION]: {
-        ja: "アクセス権限がありません。",
-        en: "Access denied."
-    },
-    [ErrorType.NOT_FOUND]: {
-        ja: "リソースが見つかりません。",
-        en: "Resource not found."
-    },
-    [ErrorType.DUPLICATE]: {
-        ja: "リソースが既に存在します。",
-        en: "Resource already exists."
-    },
-    [ErrorType.NETWORK]: {
-        ja: "ネットワークエラーが発生しました。",
-        en: "Network error occurred."
-    },
-    [ErrorType.SERVER]: {
-        ja: "サーバーエラーが発生しました。",
-        en: "Internal server error occurred."
-    },
-    [ErrorType.UNKNOWN]: {
-        ja: "予期せぬエラーが発生しました。",
-        en: "An unexpected error occurred."
-    }
+export const errorTypeToMessage: Record<ErrorType, string> = {
+  [ErrorType.VALIDATION]: ErrorMessages.VALIDATION_ERROR,
+  [ErrorType.AUTHENTICATION]: ErrorMessages.UNAUTHORIZED,
+  [ErrorType.AUTHORIZATION]: ErrorMessages.FORBIDDEN,
+  [ErrorType.NOT_FOUND]: ErrorMessages.NOT_FOUND,
+  [ErrorType.DATABASE]: ErrorMessages.DATABASE_ERROR,
+  [ErrorType.INTERNAL]: ErrorMessages.INTERNAL_ERROR,
+  [ErrorType.TOKEN_EXPIRED]: ErrorMessages.TOKEN_EXPIRED,
+  [ErrorType.INVALID_TOKEN]: ErrorMessages.TOKEN_INVALID,
+  [ErrorType.DUPLICATE]: ErrorMessages.DUPLICATE_EMAIL,
+  [ErrorType.NETWORK]: ErrorMessages.NETWORK_ERROR,
+  [ErrorType.UNKNOWN]: ErrorMessages.UNKNOWN_ERROR,
+  [ErrorType.SERVER]: ErrorMessages.SERVER_ERROR
 };
 
-const getErrorMessage = (type: ErrorType, language: 'ja' | 'en' = 'ja'): string => {
-    return ErrorMessages[type][language];
-};
-
-export { 
-    ErrorMessages,
-    getErrorMessage,
-    ErrorMessageType,
-    ErrorMessagesType
-}; 
+export function getErrorMessage(type: ErrorType): string {
+  return errorTypeToMessage[type] || ErrorMessages.UNKNOWN_ERROR;
+} 
