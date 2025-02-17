@@ -4,15 +4,6 @@ export enum UserRole {
   TEST = 'test'
 }
 
-export type ReadingDepth = 'basic' | 'advanced' | 'expert';
-export type ReadingFocus = 'psychological' | 'spiritual' | 'practical';
-
-export interface ReadingPreference {
-  depth: ReadingDepth;
-  focus: ReadingFocus[];
-  autoSave: boolean;
-}
-
 export interface User {
   id: string;
   name: string;
@@ -22,59 +13,21 @@ export interface User {
   isTestUser: boolean;
   createdAt: string;
   lastLoginAt: string | null;
-  isPro: boolean;  // プレミアムプラン加入状態
-  proExpiresAt?: Date;  // プレミアムプランの有効期限
+  isPro: boolean;
+  proExpiresAt?: Date;
   isSubscribed?: boolean;
-  personalInfo?: {
-    birthDate: string;
-    birthTime?: string;
-    birthPlace?: string;
-    gender?: string;
+  deviceInfo?: {
+    type: string;
+    os: string;
+    browser: string;
   };
-  subscriptionPlan?: 'basic' | 'premium' | 'test';
-  subscriptionStartDate?: string;
-  subscriptionEndDate?: string;
   preferences?: {
-    favoriteTypes: string[];
-    interestedAspects: string[];
-    culturalContext: 'japanese' | 'western' | 'chinese';
-    notificationSettings: {
-      daily: boolean;
-      weekly: boolean;
-      monthly: boolean;
-      fortuneTypes: string[];
-      channels: {
-        email: boolean;
-        browser: boolean;
-        mobile: boolean;
-      };
-    };
     displaySettings: {
       theme: 'light' | 'dark' | 'auto';
-      fontSize: 'small' | 'medium' | 'large';
       language: 'ja' | 'en';
-      showImages: boolean;
-      compactView: boolean;
     };
-    privacySettings: {
-      shareHistory: boolean;
-      allowAnalytics: boolean;
-      storeDuration: number;
-    };
-    fortuneSettings: {
-      defaultTypes: string[];
-      favoriteSymbols: string[];
-      excludedSymbols: string[];
-      customKeywords: string[];
-      readingPreferences: {
-        numerology: ReadingPreference;
-        tarot: ReadingPreference;
-        palm: ReadingPreference;
-        dream: ReadingPreference;
-        compatibility: ReadingPreference;
-        fortune: ReadingPreference;
-        general: ReadingPreference;
-      };
+    notificationSettings: {
+      email: boolean;
     };
   };
 }
@@ -109,4 +62,4 @@ export interface Subscription {
   startDate: Date;
   endDate: Date;
   autoRenew: boolean;
-} 
+}

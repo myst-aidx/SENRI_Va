@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -11,27 +10,13 @@ import userRoutes from './routes/userRoutes';
 import chatRoutes from './routes/chatRoutes';
 import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import fortuneHistoryRoutes from './routes/fortuneHistoryRoutes';
-const { createLogger } = require('./utils/logger');
+import { createLogger } from './utils/logger';
+import app from './app';
 
 dotenv.config();
 
-export const app = express();
-
 const logger = createLogger('Server');
 const port = Number(process.env.PORT) || 3000;
-
-// CORS設定
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://192.168.3.44:5173',
-    'http://192.168.3.44:5174'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 
 // ミドルウェア
 app.use(bodyParser.json({ limit: '10mb' }));

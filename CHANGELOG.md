@@ -1,4 +1,4 @@
-# 変更履歴 (2024-01-24)
+# SENRI
 
 ## 概要
 環境依存のエラー解消のための更新（コミットハッシュ: `0ad7403dccda248a9aa1a47a142e55355686e080`）
@@ -9,26 +9,24 @@
 ### 1. package.json の変更
 ```diff
 {
--  "name": "SENRI",
-+  "name": "fortune-telling-app",
-   "private": true,
-   "version": "0.1.0",
-   "type": "module",
-+  "engines": {
-+    "node": ">=18.0.0"
-+  },
-   "scripts": {
-     "dev": "vite",
-     "dev:frontend": "vite",
-     "dev:backend": "cd server && npm run dev",
-     "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-     "start:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
--    "build": "tsc --noEmit false && vite build",
-+    "build": "vite build",
-     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 999",
-     "type-check": "tsc --noEmit",
-     "preview": "vite preview",
-   }
+  "name": "SENRI",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:frontend": "vite",
+    "dev:backend": "cd server && npm run dev",
+    "dev:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "start:all": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "build": "vite build",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 999",
+    "type-check": "tsc --noEmit",
+    "preview": "vite preview",
+  }
 }
 ```
 
@@ -60,7 +58,7 @@
 ```
 
 #### 主な変更点
-1. プロジェクト名の変更：「SENRI」から「fortune-telling-app」へ
+1. プロジェクト名の変更：「fortune-telling-app」から「SENRI」へ
 2. Node.jsバージョン要件の追加：v18.0.0以上
 3. ビルドスクリプトの簡素化：TypeScriptコンパイル手順の削除
 4. 依存パッケージのバージョン更新：
@@ -78,50 +76,38 @@
      "lib": ["ES2020", "DOM", "DOM.Iterable"],
      "module": "ESNext",
      "skipLibCheck": true,
--    /* Bundler mode */
--    "moduleResolution": "bundler",
--    "resolveJsonModule": true,
--    "isolatedModules": true,
--    "jsx": "react-jsx",
--    "noEmit": true,
--    /* Linting */
--    "strict": true,
-+    "noImplicitAny": false,
-+    "strictNullChecks": false,
-+    "strict": false,
+     "noImplicitAny": false,
+     "strictNullChecks": false,
+     "strict": false,
      "noUnusedLocals": false,
      "noUnusedParameters": false,
--    "noFallthroughCasesInSwitch": true,
-+    "noFallthroughCasesInSwitch": false,
+     "noFallthroughCasesInSwitch": false,
      "allowJs": true,
      "esModuleInterop": true,
--    "allowSyntheticDefaultImports": true,
--    "forceConsistentCasingInFileNames": true,
-+    "moduleResolution": "bundler",
-+    "resolveJsonModule": true,
-+    "isolatedModules": false,
-+    "noEmit": false,
-+    "jsx": "react-jsx",
+     "moduleResolution": "bundler",
+     "resolveJsonModule": true,
+     "isolatedModules": false,
+     "noEmit": false,
+     "jsx": "react-jsx",
      "allowImportingTsExtensions": true,
-+    "checkJs": false,
-+    "strictPropertyInitialization": false,
-+    "strictFunctionTypes": false,
-+    "strictBindCallApply": false,
-+    "noImplicitThis": false,
-+    "alwaysStrict": false,
+     "checkJs": false,
+     "strictPropertyInitialization": false,
+     "strictFunctionTypes": false,
+     "strictBindCallApply": false,
+     "noImplicitThis": false,
+     "alwaysStrict": false,
    },
--  "include": ["src", "cypress", "**/*.ts", "**/*.tsx"],
-+  "include": ["src/**/*"],
-+  "exclude": [
-+    "node_modules",
-+    "**/*.cy.ts",
-+    "**/*.cy.tsx",
-+    "cypress",
-+    "**/*.spec.ts",
-+    "**/*.test.ts",
-+    "**/*.spec.tsx",
-+    "**/*.test.tsx"
-+  ],
+   "include": ["src/**/*"],
+   "exclude": [
+     "node_modules",
+     "**/*.cy.ts",
+     "**/*.cy.tsx",
+     "cypress",
+     "**/*.spec.ts",
+     "**/*.test.ts",
+     "**/*.spec.tsx",
+     "**/*.test.tsx"
+   ],
 }
 ```
 

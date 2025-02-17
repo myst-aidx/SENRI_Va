@@ -8,31 +8,38 @@ interface SurveyFormProps {
 }
 
 export interface SurveyData {
-  name: string;
-  email: string;
+  // 必須項目（テストユーザー情報）
+  contact_email: string;
+  test_user_name: string;
+  referrer_name: string;
+  
+  // 必須項目（占い関連）
   experience: string;
   activityType: string[];
   fortuneTypes: string[];
-  learningStyle: string[];
-  interestedTypes: string[];
   deviceUsage: string;
+
+  // オプション項目
   onlineResistance: number;
   marketingChannels: string[];
   expectedFeatures: string[];
   importantFactors: string[];
-  privacyConsent: boolean;
-  termsConsent: boolean;
-  basicInfoFeedback?: string;
+  monthlyClients: string;
+  priceRange: string;
+  challenges: string[];
+  interestLevel: string[];
+
+  // フィードバック項目
   experienceFeedback?: string;
   serviceFeedback?: string;
   deviceFeedback?: string;
   marketingFeedback?: string;
   featuresFeedback?: string;
   feedback?: string;
-  monthlyClients: string;
-  priceRange: string;
-  challenges: string[];
-  interestLevel?: string[];
+
+  // 同意項目
+  privacyConsent: boolean;
+  termsConsent: boolean;
 }
 
 const EXPERIENCE_OPTIONS = [
@@ -149,31 +156,23 @@ export default function SurveyForm({ onSubmit }: SurveyFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<SurveyData>({
-    name: '',
-    email: '',
+    contact_email: '',
+    test_user_name: '',
+    referrer_name: '',
     experience: '',
     activityType: [],
     fortuneTypes: [],
-    learningStyle: [],
-    interestedTypes: [],
     deviceUsage: '',
     onlineResistance: 3,
     marketingChannels: [],
     expectedFeatures: [],
     importantFactors: [],
-    privacyConsent: false,
-    termsConsent: false,
-    basicInfoFeedback: '',
-    experienceFeedback: '',
-    serviceFeedback: '',
-    deviceFeedback: '',
-    marketingFeedback: '',
-    featuresFeedback: '',
-    feedback: '',
     monthlyClients: '',
     priceRange: '',
     challenges: [],
-    interestLevel: []
+    interestLevel: [],
+    privacyConsent: false,
+    termsConsent: false
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,17 +192,22 @@ export default function SurveyForm({ onSubmit }: SurveyFormProps) {
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
-        return !!formData.name && !!formData.email;
+        return (
+          !!formData.contact_email &&
+          !!formData.test_user_name &&
+          !!formData.referrer_name &&
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)
+        );
       case 2:
         return !!formData.experience && formData.activityType.length > 0;
       case 3:
-        return formData.fortuneTypes.length > 0 && formData.challenges.length > 0;
+        return formData.fortuneTypes.length > 0;
       case 4:
         return !!formData.deviceUsage;
       case 5:
         return true;
       case 6:
-        return formData.expectedFeatures.length > 0 && formData.importantFactors.length > 0;
+        return true;
       case 7:
         return formData.privacyConsent && formData.termsConsent;
       default:
@@ -237,8 +241,8 @@ export default function SurveyForm({ onSubmit }: SurveyFormProps) {
             SENRI テストユーザー事前アンケート
           </h1>
           <p className="text-purple-200 mb-2">
-            オンラインでの占いビジネスを支援するSENRIの開発に向けて、
-            あなたの現状とニーズをお聞かせください。
+            テストユーザーとしてSENRIの開発に参加していただくための事前アンケートです。
+            ご回答いただいた方には、テストアカウントの情報をお送りいたします。
           </p>
         </div>
 
@@ -263,44 +267,49 @@ export default function SurveyForm({ onSubmit }: SurveyFormProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {currentStep === 1 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-purple-100 flex items-center">
-                  <User className="w-6 h-6 mr-2" />
-                  基本情報
+                <h2 className="text-xl font-semibold text-purple-100">
+                  テストユーザー基本情報
                 </h2>
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    お名前 *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    メールアドレス *
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    その他、補足事項がございましたらご記入ください
-                  </label>
-                  <textarea
-                    value={formData.basicInfoFeedback}
-                    onChange={e => setFormData(prev => ({ ...prev, basicInfoFeedback: e.target.value }))}
-                    className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
-                    placeholder="自由にご記入ください"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-purple-200 mb-2">
+                      連絡用メールアドレス *
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.contact_email}
+                      onChange={e => setFormData(prev => ({ ...prev, contact_email: e.target.value }))}
+                      className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100"
+                      required
+                      placeholder="test@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-purple-200 mb-2">
+                      氏名 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.test_user_name}
+                      onChange={e => setFormData(prev => ({ ...prev, test_user_name: e.target.value }))}
+                      className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100"
+                      required
+                      placeholder="山田 太郎"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-purple-200 mb-2">
+                      紹介者名 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.referrer_name}
+                      onChange={e => setFormData(prev => ({ ...prev, referrer_name: e.target.value }))}
+                      className="w-full px-4 py-2 bg-purple-900/20 border border-purple-700/50 rounded-lg text-purple-100"
+                      required
+                      placeholder="紹介者の名前"
+                    />
+                  </div>
                 </div>
               </div>
             )}

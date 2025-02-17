@@ -1,61 +1,87 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
-import { User } from '../models/User';
+import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 async function createInitialAdmin() {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/senri_db';
-    await mongoose.connect(mongoUri);
-    console.log('MongoDB connected successfully');
-
     // 管理者アカウントの設定
     const adminEmail = 'admin@senri.com';
-    const adminPassword = 'admin123';
+    const adminPassword = 'admin123'; // 本番環境では強力なパスワードに変更してください
+    
+    // 既存の管理者をチェック
+    const { data: existingAdmin } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', adminEmail)
+      .single();
 
-    // パスワードのハッシュ化
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(adminPassword, salt);
-
-    // 既に管理者が存在していないかチェック
-    const existingAdmin = await User.findOne({ email: adminEmail });
     if (existingAdmin) {
-      console.log('管理者アカウントは既に存在します:', existingAdmin.email);
-      await mongoose.disconnect();
+      console.log('Admin account already exists');
       return;
     }
 
-    // 管理者ユーザーの作成
-    const admin = new User({
-      email: adminEmail,
-      password: hashedPassword,
-      name: '管理者',
-      role: 'admin',
-      isAdmin: true,
-      isSubscribed: true,
-      subscriptionType: 'premium',
-      subscriptionEndDate: new Date('2025-12-31')
-    });
+    // パスワードのハッシュ化
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(adminPassword, salt);
 
-    await admin.save();
-    console.log('管理者アカウントを作成しました');
-    console.log('Email:', adminEmail);
-    console.log('Password:', adminPassword);
+    // 管理者アカウントの作成
+    const { error: userError } = await supabase
+      .from('users')
+      .insert({
+        email: adminEmail,
+        password_hash: passwordHash,
+        first_name: 'Admin',
+        last_name: 'User',
+        role: 'admin',
+        is_active: true,
+        email_verified: true
+      });
+
+    if (userError) {
+      throw userError;
+    }
+
+    // 管理者の設定を作成
+    const { error: prefError } = await supabase
+      .from('user_preferences')
+      .insert({
+        user_id: (await supabase
+          .from('users')
+          .select('id')
+          .eq('email', adminEmail)
+          .single()).data?.id,
+        theme: 'light',
+        language: 'ja',
+        notification_settings: {
+          email: true,
+          push: true,
+          sms: false
+        },
+        fortune_preferences: {
+          favorite_types: [],
+          excluded_topics: []
+        }
+      });
+
+    if (prefError) {
+      throw prefError;
+    }
+
+    console.log('Admin account created successfully');
   } catch (error) {
-    console.error('管理者アカウントの作成に失敗しました:', error);
-  } finally {
-    await mongoose.disconnect();
-    console.log('MongoDB disconnected');
+    console.error('Failed to create admin account:', error);
   }
 }
 
-// スクリプトが直接実行された場合に関数を実行
-if (require.main === module) {
-  createInitialAdmin()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error('Error:', error);
-      process.exit(1);
-    });
-}
-
-export default createInitialAdmin;
+createInitialAdmin().catch(console.error);
