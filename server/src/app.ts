@@ -8,36 +8,27 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT) || 5000;
 
+// CORSミドルウェアを追加
+app.use(cors());
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// CORSの設定（動的にオリジンを判定）
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // リクエスト元がundefinedの場合も許可する
-      if (!origin) return callback(null, true);
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://192.168.3.44:5173',
-        'http://192.168.3.44:5174'
-      ];
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        return callback(null, true);
-      } else {
-        return callback(new Error(`CORSエラー: ${origin} は許可されていません`));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-  })
-);
-
-// ヘルスチェックエンドポイント
+// ヘルスチェックエンドポイントを修正（より詳細な情報を含める）
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    server: {
+      port: port,
+      uptime: process.uptime()
+    },
+    supabase: {
+      connected: !!supabase,
+      url: process.env.SUPABASE_URL ? 'configured' : 'not configured'
+    }
+  });
 });
 
 // アンケート送信エンドポイント
@@ -67,9 +58,7 @@ app.post('/api/survey', async (req, res) => {
     
     const { data, error } = await supabase
       .from('survey_responses')
-      .insert([insertData])
-      .select()
-      .single();
+      .insert([insertData]);
     
     if (error) {
       console.error('Survey save error details:', {
@@ -99,9 +88,22 @@ app.post('/api/survey', async (req, res) => {
   }
 });
 
-// サーバーの起動
+// エラーハンドリングミドルウェア（他のルートの後に追加）
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Server Error:', err);
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// サーバーの起動を修正（エラーハンドリングを追加）
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`Health check endpoint: http://localhost:${port}/health`);
+}).on('error', (error) => {
+  console.error('Failed to start server:', error);
 });
 
 export default app;
